@@ -448,45 +448,59 @@ def settings_view(request):
         
         # Water level station actions
         if action == 'add_station':
-            with transaction.atomic():
-                # Get form data
-                name = request.POST.get('name')
-                station_id = request.POST.get('station_id')
-                green = float(request.POST.get('green_threshold'))
-                yellow = float(request.POST.get('yellow_threshold'))
-                orange = float(request.POST.get('orange_threshold'))
-                red = float(request.POST.get('red_threshold'))
-                modbus_ip = request.POST.get('modbus-ip')
-                modbus_port = int(request.POST.get('modbus-port'))
-                unit_id = int(request.POST.get('unit-id'))
-                register_address = int(request.POST.get('register-address'))
-                latitude = request.POST.get('latitude')
-                longitude = request.POST.get('longitude')
-                
-                # Create new station
-                station = WaterLevelStation.objects.create(
-                    name=name,
-                    station_id=station_id,
-                    green_threshold=green,
-                    yellow_threshold=yellow,
-                    orange_threshold=orange,
-                    red_threshold=red,
-                    modbus_ip=modbus_ip,
-                    modbus_port=modbus_port,
-                    unit_id=unit_id,
-                    register_address=register_address,
-                    latitude=latitude if latitude else None,
-                    longitude=longitude if longitude else None
-                )
-                
-                # Log the activity
-                Logs.objects.create(
-                    user=request.user,
-                    action=f"Added water level station: {name} ({station_id}) with thresholds G:{green}cm, Y:{yellow}cm, O:{orange}cm, R:{red}cm"
-                )
-                
-                messages.success(request, 'Station added successfully.')
+            try:
+                with transaction.atomic():
+                    # Get form data
+                    name = request.POST.get('name')
+                    station_id = request.POST.get('station_id')
+                    green = float(request.POST.get('green_threshold'))
+                    yellow = float(request.POST.get('yellow_threshold'))
+                    orange = float(request.POST.get('orange_threshold'))
+                    red = float(request.POST.get('red_threshold'))
+                    modbus_ip = request.POST.get('modbus-ip')
+                    modbus_port = int(request.POST.get('modbus-port'))
+                    unit_id = int(request.POST.get('unit-id'))
+                    register_address = int(request.POST.get('register-address'))
+                    latitude = request.POST.get('latitude')
+                    longitude = request.POST.get('longitude')
+                    
+                    # Print debug information
+                    print("Received form data:")
+                    print(f"Name: {name}")
+                    print(f"Station ID: {station_id}")
+                    print(f"Thresholds - Green: {green}, Yellow: {yellow}, Orange: {orange}, Red: {red}")
+                    print(f"Modbus - IP: {modbus_ip}, Port: {modbus_port}, Unit: {unit_id}, Register: {register_address}")
+                    print(f"Location - Lat: {latitude}, Long: {longitude}")
+                    
+                    # Create new station
+                    station = WaterLevelStation.objects.create(
+                        name=name,
+                        station_id=station_id,
+                        green_threshold=green,
+                        yellow_threshold=yellow,
+                        orange_threshold=orange,
+                        red_threshold=red,
+                        modbus_ip=modbus_ip,
+                        modbus_port=modbus_port,
+                        unit_id=unit_id,
+                        register_address=register_address,
+                        latitude=float(latitude) if latitude else None,
+                        longitude=float(longitude) if longitude else None
+                    )
+                    
+                    # Log the activity
+                    Logs.objects.create(
+                        user=request.user,
+                        action=f"Added water level station: {name} ({station_id}) with thresholds G:{green}cm, Y:{yellow}cm, O:{orange}cm, R:{red}cm"
+                    )
+                    
+                    messages.success(request, 'Station added successfully.')
+            except Exception as e:
+                print(f"Error adding station: {str(e)}")
+                messages.error(request, f'Error adding station: {str(e)}')
             
+            active_tab = 'water-level-tab'
+        
         elif action == 'edit_station':
             with transaction.atomic():
                 # Get form data
