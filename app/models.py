@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 class WaterLevelStation(models.Model):
     name = models.CharField(max_length=255)  # Station name (e.g., "Pagatban Bridge")
-    station_id = models.CharField(max_length=50, unique=True)  # Unique identifier
+    station_id = models.CharField(max_length=255, unique=True)  # Unique identifier
     green_threshold = models.FloatField()
     yellow_threshold = models.FloatField()
     orange_threshold = models.FloatField() 
@@ -29,7 +29,7 @@ class WaterLevelData(models.Model):
     date = models.DateField(auto_now_add=True)
     time = models.TimeField(auto_now_add=True)
     data = models.FloatField()  # Stores water level in centimeters
-    type = models.CharField(max_length=50, default="live")
+    type = models.CharField(max_length=255, default="live")
     
     class Meta:
         ordering = ['-date', '-time']
@@ -39,9 +39,9 @@ class WaterLevelData(models.Model):
     
     
 class WeatherStation(models.Model):
-    name = models.CharField(max_length=100)
-    station_id = models.CharField(max_length=50, unique=True)
-    status = models.CharField(max_length=100, default="active")
+    name = models.CharField(max_length=255)
+    station_id = models.CharField(max_length=255, unique=True)
+    status = models.CharField(max_length=255, default="active")
     date_added = models.DateTimeField(auto_now_add=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
@@ -53,16 +53,16 @@ class WeatherStation(models.Model):
 class WeatherStatus(models.Model):
     weather_station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='weather_logs')
     timestamp = models.DateTimeField(auto_now_add=True)
-    temperature = models.CharField(max_length=20, null=True, blank=True)
-    humidity = models.CharField(max_length=20, null=True, blank=True)
-    wind_speed = models.CharField(max_length=20, null=True, blank=True)
-    wind_direction = models.CharField(max_length=20, null=True, blank=True)
-    pressure = models.CharField(max_length=20, null=True, blank=True)
-    precipitation_rate = models.CharField(max_length=20, null=True, blank=True)
-    precipitation_total = models.CharField(max_length=20, null=True, blank=True)
-    uv = models.CharField(max_length=20, null=True, blank=True)
-    solar_radiation = models.CharField(max_length=20, null=True, blank=True)
-    data_source = models.CharField(max_length=20, default="api")  # 'api' or 'manual'
+    temperature = models.CharField(max_length=255, null=True, blank=True)
+    humidity = models.CharField(max_length=255, null=True, blank=True)
+    wind_speed = models.CharField(max_length=255, null=True, blank=True)
+    wind_direction = models.CharField(max_length=255, null=True, blank=True)
+    pressure = models.CharField(max_length=255, null=True, blank=True)
+    precipitation_rate = models.CharField(max_length=255, null=True, blank=True)
+    precipitation_total = models.CharField(max_length=255, null=True, blank=True)
+    uv = models.CharField(max_length=255, null=True, blank=True)
+    solar_radiation = models.CharField(max_length=255, null=True, blank=True)
+    data_source = models.CharField(max_length=255, default="api")  # 'api' or 'manual'
 
     class Meta:
         ordering = ['-timestamp']
@@ -72,11 +72,11 @@ class WeatherStatus(models.Model):
     
 
 class WeatherForecastStation(models.Model):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=100)  # Location name (e.g., "Dumaguete City")
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)  # Location name (e.g., "Dumaguete City")
     latitude = models.FloatField()  # Latitude for Open-Meteo API
     longitude = models.FloatField()  # Longitude for Open-Meteo API
-    status = models.CharField(max_length=100, default="active")
+    status = models.CharField(max_length=255, default="active")
     date_added = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
