@@ -101,7 +101,7 @@ class WeatherForecast(models.Model):
 
 class Logs(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    action = models.CharField(max_length=100)
+    action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
