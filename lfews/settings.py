@@ -94,7 +94,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'old-lfews',
+            'NAME': 'old_lfews',
             'USER': 'old_lfews_user',
             'PASSWORD': 'M5v9cPywnM5arU637mm9YtlotdkUfvvs',
             'HOST': 'dpg-d0q8c7a4d50c73c0loog-a.oregon-postgres.render.com',
