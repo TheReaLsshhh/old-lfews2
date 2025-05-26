@@ -10,7 +10,7 @@ class WaterLevelStation(models.Model):
     yellow_threshold = models.FloatField()
     orange_threshold = models.FloatField() 
     red_threshold = models.FloatField()
-    modbus_ip = models.GenericIPAddressField(protocol='IPv4', default='192.168.41.11')
+    modbus_ip = models.GenericIPAddressField(protocol='IPv4')
     modbus_port = models.IntegerField(default=100)
     unit_id = models.IntegerField(default=1)
     register_address = models.IntegerField(default=6)
