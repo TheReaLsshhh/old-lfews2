@@ -80,16 +80,28 @@ WSGI_APPLICATION = 'lfews.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'old-lfews',
-        'USER': 'old_lfews_user',
-        'PASSWORD': 'M5v9cPywnM5arU637mm9YtlotdkUfvvs',
+# Check if running on Render.com
+if 'RENDER' in os.environ:
+    # Production Database
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600
+        )
     }
-}
+else:
+    # Local Development Database
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'old-lfews',
+            'USER': 'old_lfews_user',
+            'PASSWORD': 'M5v9cPywnM5arU637mm9YtlotdkUfvvs',
+            'HOST': 'dpg-d0q8c7a4d50c73c0loog-a.oregon-postgres.render.com',
+            'PORT': '5432',
+        }
+    }
 
-DATABASES["default"] = dj_database_url.parse("postgresql://old_lfews_user:M5v9cPywnM5arU637mm9YtlotdkUfvvs@dpg-d0q8c7a4d50c73c0loog-a.oregon-postgres.render.com/old_lfews")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
