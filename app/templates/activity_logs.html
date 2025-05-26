@@ -1,0 +1,597 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Logs</title>
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f7f8fa !important;
+            color: #222;
+        }
+        
+        .page-header {
+            background-color: #024CAA;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: width 0.4s ease, margin-left 0.4s ease;
+        }
+        
+        .header-container.sidebar-hidden {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title i {
+            font-size: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .current-date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0px 12px;
+            border-radius: 6px;
+        }
+        
+        .current-date i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 250px;
+            padding: 80px 0 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: margin-left 0.4s ease, width 0.4s ease;
+        }
+
+        .main.sidebar-hidden {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .card-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
+            padding: 32px 32px 24px 32px;
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 24px;
+            transition: width 0.4s ease, max-width 0.4s ease;
+        }
+
+        .card-container.sidebar-hidden {
+            max-width: 1600px;
+        }
+
+        .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 1.08rem;
+            margin-bottom: 28px;
+        }
+
+        /* Filter styles */
+        .filter-container {
+            background-color: #f7f8fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #eaeaea;
+        }
+
+        .filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .filter-input {
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .filter-input:focus {
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+            outline: none;
+        }
+
+        .filter-select {
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background-color: #fff;
+            transition: all 0.2s;
+        }
+
+        .filter-select:focus {
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+            outline: none;
+        }
+
+        .filter-buttons {
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        .filter-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .filter-btn.primary {
+            background-color: #024CAA;
+            color: white;
+        }
+
+        .filter-btn.primary:hover {
+            background-color: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+
+        .filter-btn.secondary {
+            background-color: #f1f1f1;
+            color: #666;
+            text-decoration: none;
+        }
+
+        .filter-btn.secondary:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        /* Logs table styles */
+        .logs-table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .logs-table thead {
+            background-color: #f7f8fa;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logs-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #024CAA;
+        }
+
+        .logs-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eaeaea;
+            vertical-align: top;
+        }
+
+        .logs-table tbody tr:hover {
+            background-color: rgba(2, 76, 170, 0.03);
+        }
+
+        .log-id {
+            font-weight: 600;
+            color: #024CAA;
+            font-family: "Courier New", monospace;
+        }
+
+        .station-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .station-type.water_level {
+            background-color: rgba(52, 152, 219, 0.15);
+            color: #2980b9;
+        }
+
+        .station-type.weather {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+        }
+
+        .station-type.forecast {
+            background-color: rgba(155, 89, 182, 0.15);
+            color: #8e44ad;
+        }
+
+        .action-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .action-type.add {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+        }
+
+        .action-type.edit {
+            background-color: rgba(52, 152, 219, 0.15);
+            color: #2980b9;
+        }
+
+        .action-type.delete {
+            background-color: rgba(231, 76, 60, 0.15);
+            color: #c0392b;
+        }
+
+        .action-type.enable {
+            background-color: rgba(241, 196, 15, 0.15);
+            color: #f39c12;
+        }
+
+        .action-type.disable {
+            background-color: rgba(149, 165, 166, 0.15);
+            color: #7f8c8d;
+        }
+
+        .timestamp {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .empty-logs {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px dashed #e0e0e0;
+            margin-top: 20px;
+        }
+
+        .empty-logs i {
+            font-size: 3rem;
+            color: #ccc;
+            margin-bottom: 16px;
+        }
+
+        .empty-logs h3 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            background-color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .pagination-btn:hover {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+
+        .pagination-btn.active {
+            background-color: #024CAA;
+            color: white;
+            border-color: #024CAA;
+        }
+
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .details-toggle {
+            cursor: pointer;
+            color: #024CAA;
+            text-decoration: underline;
+            font-size: 0.85rem;
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+            color: #555;
+            border-left: 3px solid #024CAA;
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+            
+            .main {
+                margin-left: 0;
+                padding: 80px 20px 20px;
+            }
+            .card-container {
+                padding: 24px;
+            }
+            .filter-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-container">
+            <div class="header-title">
+                <i class="fas fa-history"></i>
+                <span>Activity Logs</span>
+            </div>
+            <div class="header-actions">
+                <div class="current-date">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <div class="card-container">
+            <div class="section-header">
+                <span>System Activity Logs</span>
+            </div>
+            <div class="section-desc">Track all station management activities performed by administrators</div>
+
+            <div class="filter-container">
+                <form class="filter-form" method="get" action="{% url 'activity_logs' %}">
+                    <div class="filter-group">
+                        <label class="filter-label">Station Type</label>
+                        <select name="log_type" class="filter-select">
+                            <option value="" {% if not log_type %}selected{% endif %}>All Types</option>
+                            <option value="water_level" {% if log_type == 'water_level' %}selected{% endif %}>Water Level</option>
+                            <option value="weather" {% if log_type == 'weather' %}selected{% endif %}>Weather</option>
+                            <option value="forecast" {% if log_type == 'forecast' %}selected{% endif %}>Forecast</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Action Type</label>
+                        <select name="action_type" class="filter-select">
+                            <option value="" {% if not action_type %}selected{% endif %}>All Actions</option>
+                            <option value="add" {% if action_type == 'add' %}selected{% endif %}>Add</option>
+                            <option value="edit" {% if action_type == 'edit' %}selected{% endif %}>Edit</option>
+                            <option value="delete" {% if action_type == 'delete' %}selected{% endif %}>Delete</option>
+                            <option value="enable" {% if action_type == 'enable' %}selected{% endif %}>Enable</option>
+                            <option value="disable" {% if action_type == 'disable' %}selected{% endif %}>Disable</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">From Date</label>
+                        <input type="text" name="date_from" class="filter-input date-picker" placeholder="Select date" value="{{ date_from|date:'Y-m-d' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">To Date</label>
+                        <input type="text" name="date_to" class="filter-input date-picker" placeholder="Select date" value="{{ date_to|date:'Y-m-d' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Search</label>
+                        <input type="text" name="search" class="filter-input" placeholder="Search logs" value="{{ search_query }}">
+                    </div>
+                    <div class="filter-buttons">
+                        <button type="submit" class="filter-btn primary">
+                            <i class="fas fa-filter"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'activity_logs' %}" class="filter-btn secondary">
+                            <i class="fas fa-sync-alt"></i> Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="logs-table-container">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if logs %}
+                            {% for log in logs %}
+                                <tr>
+                                    <td><span class="log-id">#{{ log.id }}</span></td>
+                                    <td><span class="timestamp">{{ log.timestamp|date:"M d, Y" }} at {{ log.timestamp|time:"h:i:s A" }}</span></td>
+                                    <td>{{ log.user.username }}</td>
+                                    <td>
+                                        {% if 'Added' in log.action %}
+                                            <span class="action-type add">Added</span>
+                                        {% elif 'Edited' in log.action %}
+                                            <span class="action-type edit">Edited</span>
+                                        {% elif 'Deleted' in log.action %}
+                                            <span class="action-type delete">Deleted</span>
+                                        {% elif 'Enabled' in log.action %}
+                                            <span class="action-type enable">Enabled</span>
+                                        {% elif 'Disabled' in log.action %}
+                                            <span class="action-type disable">Disabled</span>
+                                        {% endif %}
+                                        {{ log.action }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 32px 16px;">
+                                    <div style="color: #666;">
+                                        <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 12px; color: #ccc;"></i>
+                                        <p>No logs found matching your criteria</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if logs.count == 0 and not log_type and not action_type and not search_query and not date_from and not date_to %}
+                <div class="empty-logs">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h3>No Activity Logs Yet</h3>
+                    <p>Station management activities will be recorded here when administrators perform actions.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Initialize date pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current date
+            const currentDate = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById("currentDate").textContent = currentDate.toLocaleDateString('en-US', dateOptions);
+            
+            flatpickr(".date-picker", {
+                altInput: true,
+                altFormat: "F j, Y",
+                dateFormat: "Y-m-d"
+            });
+
+            // Handle sidebar toggle for activity logs responsiveness
+            $('.sidebar-toggle-btn').click(function() {
+                $('.main').toggleClass('sidebar-hidden');
+                $('.header-container').toggleClass('sidebar-hidden');
+                $('.card-container').toggleClass('sidebar-hidden');
+                
+                // Adjust the table container layout after transition
+                setTimeout(function() {
+                    $('.logs-table-container').each(function() {
+                        // Force a reflow of the table layout
+                        $(this).css('display', 'none');
+                        this.offsetHeight; // Force reflow
+                        $(this).css('display', 'block');
+                    });
+                }, 400); // Wait for transition to complete
+            });
+        });
+    </script>
+
+</body>
+
+</html> 

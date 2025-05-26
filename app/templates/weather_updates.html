@@ -1,0 +1,1257 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Updates</title>
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f7f8fa !important;
+            color: #222;
+        }
+        
+        .page-header {
+            background-color: #024CAA;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: width 0.4s ease, margin-left 0.4s ease;
+        }
+        
+        .header-container.sidebar-hidden {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title i {
+            font-size: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .current-date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0px 12px;
+            border-radius: 6px;
+        }
+        
+        .current-date i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 250px;
+            padding: 80px 0 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: margin-left 0.4s ease, width 0.4s ease;
+        }
+
+        .main.sidebar-hidden {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .card-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
+            padding: 32px 32px 24px 32px;
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 24px;
+            transition: width 0.4s ease, max-width 0.4s ease;
+        }
+
+        .card-container.sidebar-hidden {
+            max-width: 1600px;
+        }
+
+        .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+            gap: 12px;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 1.08rem;
+            margin-bottom: 28px;
+        }
+
+        .weather-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+            transition: all 0.4s ease;
+        }
+
+        .weather-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px solid #024CAA;
+            position: relative;
+            transition: all 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        
+        .weather-card:hover {
+            box-shadow: 0 8px 24px rgba(2, 76, 170, 0.15);
+            transform: translateY(-5px);
+            border-color: #0168fa;
+        }
+        
+        .weather-card:active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(2, 76, 170, 0.2);
+        }
+        
+        .weather-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, #024CAA, #76e095);
+            transform: scaleX(0);
+            transform-origin: 0 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .weather-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .weather-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #eaeaea;
+            padding-bottom: 12px;
+        }
+
+        .weather-card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #024CAA;
+        }
+
+        .weather-card-id {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .weather-card-main {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .weather-temp {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .weather-temp span {
+            font-size: 1.5rem;
+            margin-left: 4px;
+        }
+
+        .weather-icon {
+            font-size: 3.5rem;
+            color: #024CAA;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .weather-detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .weather-detail-item.highlight {
+            background-color: rgba(2, 76, 170, 0.05);
+            padding: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #024CAA;
+            transition: all 0.2s ease;
+        }
+        
+        .weather-detail-item.highlight:hover {
+            background-color: rgba(2, 76, 170, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(2, 76, 170, 0.1);
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .weather-update-time {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 16px;
+            text-align: right;
+            font-style: italic;
+        }
+
+        .weather-forecast {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eaeaea;
+        }
+
+        .forecast-day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 20%;
+        }
+
+        .forecast-date {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        .forecast-icon {
+            font-size: 1.5rem;
+            color: #024CAA;
+            margin-bottom: 4px;
+        }
+
+        .forecast-temp {
+            display: flex;
+            font-size: 0.9rem;
+            color: #333;
+            gap: 6px;
+        }
+
+        .forecast-high {
+            font-weight: 600;
+        }
+
+        .forecast-low {
+            color: #666;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px dashed #e0e0e0;
+            text-align: center;
+            width: 100%;
+            height: 300px;
+            grid-column: 1 / -1;
+            transition: all 0.3s ease;
+        }
+        
+        .empty-state:hover {
+            border-color: #024CAA;
+            background: rgba(2, 76, 170, 0.02);
+        }
+
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+
+        .empty-state p {
+            color: #999;
+            font-size: 1.1rem;
+            max-width: 400px;
+        }
+
+        .refresh-btn {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .loading-indicator {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .loading-indicator.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(2, 76, 170, 0.3);
+            border-radius: 50%;
+            border-top-color: #024CAA;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* History/logs section */
+        .weather-logs {
+            display: none; /* Hide the hover logs completely */
+        }
+        
+        .weather-card:hover .weather-logs {
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .logs-header {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .logs-table {
+            width: 100%;
+            font-size: 0.85rem;
+            border-collapse: collapse;
+        }
+        
+        .logs-table th, .logs-table td {
+            padding: 4px 8px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .logs-table th {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        /* Modal styles */
+        .weather-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .weather-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .weather-modal.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 24px;
+            color: #666;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            background-color: #f7f8fa;
+        }
+        
+        .close-modal:hover {
+            background-color: #eaeaea;
+            color: #333;
+            transform: rotate(90deg);
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .modal-title {
+            flex: 1;
+        }
+        
+        .modal-station-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #024CAA;
+            margin-bottom: 4px;
+        }
+        
+        .modal-station-id {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        .modal-weather-icon {
+            font-size: 3.5rem;
+            color: #024CAA;
+            margin-left: 16px;
+        }
+        
+        .modal-main-data {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        
+        .modal-temperature {
+            font-size: 4rem;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: baseline;
+        }
+        
+        .modal-temperature span {
+            font-size: 2rem;
+            margin-left: 4px;
+        }
+        
+        .modal-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .modal-detail-item {
+            background-color: #f7f8fa;
+            padding: 16px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-detail-item.highlight {
+            background-color: rgba(2, 76, 170, 0.08);
+            border-left: 4px solid #024CAA;
+            padding-left: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-detail-item.highlight:hover {
+            background-color: rgba(2, 76, 170, 0.12);
+            transform: translateX(5px);
+        }
+        
+        .modal-detail-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .modal-detail-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .modal-history {
+            margin-top: 32px;
+        }
+        
+        .modal-section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .history-table-container {
+            max-height: 160px; /* Limit height to approximately 3 rows */
+            overflow-y: auto;
+            border: 1px solid #eaeaea;
+            border-radius: 8px;
+        }
+        
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .history-table thead {
+            position: sticky;
+            top: 0;
+            background-color: #f7f8fa;
+            z-index: 10;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .history-table th {
+            background-color: #f7f8fa;
+            font-weight: 600;
+            color: #555;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid #024CAA;
+        }
+        
+        .history-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .history-table tr:hover td {
+            background-color: #f7f8fa;
+        }
+        
+        .modal-update-time {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 24px;
+            text-align: right;
+            font-style: italic;
+        }
+        
+        /* Pulse animation for refresh button */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(2, 76, 170, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0);
+            }
+        }
+        
+        .refresh-btn:hover {
+            animation: pulse 1.5s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+            
+            .main {
+                margin-left: 0;
+                padding: 80px 20px 20px;
+            }
+            .card-container {
+                padding: 24px;
+            }
+            .weather-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-container">
+            <div class="header-title">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Weather Updates</span>
+            </div>
+            <div class="header-actions">
+                <div class="current-date">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <div class="card-container">
+            <div class="section-header">
+                <span>Weather Stations</span>
+                <button id="refresh-weather-btn" class="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+            </div>
+            <div class="section-desc">Current weather conditions from monitoring stations</div>
+
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+                <span>Loading weather data...</span>
+            </div>
+
+            <div id="weather-content" class="weather-content">
+                <!-- Weather cards will be dynamically added here -->
+                <div class="empty-state" id="empty-weather-message">
+                    <h3>No Active Weather Stations</h3>
+                    <p>No weather monitoring stations are currently active. Please check the Settings page to activate stations.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Detail Modal -->
+    <div id="weather-detail-modal" class="weather-modal">
+        <div class="modal-content">
+            <button class="close-modal">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <div class="modal-title">
+                    <div class="modal-station-name" id="modal-station-name"></div>
+                    <div class="modal-station-id" id="modal-station-id"></div>
+                </div>
+                <div class="modal-weather-icon">
+                    <i class="fas" id="modal-weather-icon"></i>
+                </div>
+            </div>
+            <div class="modal-main-data">
+                <div class="modal-temperature" id="modal-temperature"></div>
+            </div>
+            <div class="modal-details" id="modal-details">
+                <!-- Details will be populated dynamically -->
+            </div>
+            <div class="modal-history">
+                <div class="modal-section-title">Weather History</div>
+                <div class="history-table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Temperature</th>
+                                <th>Humidity</th>
+                                <th>Wind</th>
+                                <th>Precipitation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-history-data">
+                            <!-- History will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-update-time" id="modal-update-time"></div>
+        </div>
+    </div>
+
+    <!-- Add JavaScript for weather updates functionality -->
+    <script>
+        $(document).ready(function() {
+            // Set current date
+            const currentDate = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            $("#currentDate").text(currentDate.toLocaleDateString('en-US', dateOptions));
+            
+            // Function to convert wind direction from degrees to directional name
+            function getWindDirectionName(degrees) {
+                if (degrees === null || degrees === undefined || degrees === 'N/A') {
+                    return 'N/A';
+                }
+                
+                // Convert degrees to 0-360 range
+                degrees = (degrees % 360 + 360) % 360;
+                
+                // Define direction ranges (each 22.5 degrees)
+                const directions = [
+                    'N', 'NNE', 'NE', 'ENE', 
+                    'E', 'ESE', 'SE', 'SSE', 
+                    'S', 'SSW', 'SW', 'WSW', 
+                    'W', 'WNW', 'NW', 'NNW'
+                ];
+                
+                // Calculate the index (each direction spans 22.5 degrees)
+                const index = Math.round(degrees / 22.5) % 16;
+                
+                return directions[index];
+            }
+            
+            // Fetch weather data on page load
+            fetchWeatherData();
+            
+            // Refresh button click handler
+            $("#refresh-weather-btn").click(function() {
+                fetchWeatherData();
+            });
+            
+            // Function to fetch weather data from the API
+            function fetchWeatherData() {
+                // Show loading indicator
+                $(".loading-indicator").addClass("show");
+                $("#weather-content").css("opacity", "0.5");
+                
+                $.ajax({
+                    url: '{% url "fetch_weather_data" %}',
+                    method: 'GET',
+                    success: function(data) {
+                        // Hide loading indicator
+                        $(".loading-indicator").removeClass("show");
+                        $("#weather-content").css("opacity", "1");
+                        
+                        // Log the complete weather data response
+                        console.log('Weather Data Response:', data);
+                        
+                        // Clear existing content
+                        $("#weather-content").empty();
+                        
+                        // Check if we have any data
+                        if (Object.keys(data).length === 0) {
+                            $("#weather-content").html(`
+                                <div class="empty-state" id="empty-weather-message">
+                                    <h3>No Active Weather Stations</h3>
+                                    <p>No weather monitoring stations are currently active. Please check the Settings page to activate stations.</p>
+                                </div>
+                            `);
+                            return;
+                        }
+                        
+                        // Process and display the weather data
+                        for (const stationId in data) {
+                            const stationData = data[stationId];
+                            
+                            // Skip if there's an error
+                            if (stationData.error) {
+                                console.error(`Error for station ${stationId}:`, stationData.error);
+                                
+                                // Add error card
+                                $("#weather-content").append(`
+                                    <div class="weather-card" style="border-color: #dc2626;">
+                                        <div class="weather-card-header">
+                                            <div>
+                                                <div class="weather-card-title">${stationData.name || 'Unknown Station'}</div>
+                                                <div class="weather-card-id">ID: ${stationId}</div>
+                                            </div>
+                                            <div class="weather-icon" style="color: #dc2626;">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </div>
+                                        </div>
+                                        <div style="text-align: center; padding: 20px 0;">
+                                            <p style="color: #dc2626; font-weight: 500; margin-bottom: 8px;">Error Loading Weather Data</p>
+                                            <p style="color: #666; font-size: 0.9rem;">${stationData.error}</p>
+                                        </div>
+                                    </div>
+                                `);
+                                continue;
+                            }
+                            
+                            // Determine weather icon based on conditions
+                            let weatherIcon = 'fa-cloud-sun'; // Default icon
+                            if (stationData.precipitation_rate > 0) {
+                                weatherIcon = 'fa-cloud-rain';
+                            } else if (stationData.humidity > 80) {
+                                weatherIcon = 'fa-cloud';
+                            } else if (stationData.temperature > 85) {
+                                weatherIcon = 'fa-sun';
+                            }
+                            
+                            // Check if we have timezone info from the server
+                            const timezoneInfo = stationData.timezone_info || { name: 'UTC', offset: '+0000' };
+                            console.log('Server timezone info:', timezoneInfo);
+                            
+                            try {
+                                // Fix date parsing - handle both date strings and timestamp strings
+                                const obsTime = stationData.observation_time;
+                                if (obsTime && obsTime !== 'N/A') {
+                                    // Check if it's a year in the future (like 2025) which indicates wrong date
+                                    if (obsTime.includes('2025')) {
+                                        // Adjust the year to current year
+                                        const currentYear = new Date().getFullYear();
+                                        const correctedTime = obsTime.replace('2025', currentYear);
+                                        observationTime = new Date(correctedTime);
+                                    } else {
+                                        // If timestamp doesn't include timezone, append the server's timezone offset
+                                        if (!obsTime.includes('+') && !obsTime.includes('-', 10)) {
+                                            const timeWithZone = `${obsTime} ${timezoneInfo.offset}`;
+                                            observationTime = new Date(timeWithZone);
+                                        } else {
+                                            observationTime = new Date(obsTime);
+                                        }
+                                    }
+                                    
+                                    // Apply timezone offset correction if needed
+                                    // This handles the case where the server time and local time differ
+                                    const serverUtcOffset = observationTime.getTimezoneOffset();
+                                    const localTime = new Date();
+                                    const localUtcOffset = localTime.getTimezoneOffset();
+                                    
+                                    // If timezone offsets are different, adjust the time
+                                    if (serverUtcOffset !== localUtcOffset) {
+                                        const offsetDiff = localUtcOffset - serverUtcOffset;
+                                        observationTime.setMinutes(observationTime.getMinutes() - offsetDiff);
+                                    }
+                                } else {
+                                    observationTime = new Date(); // Default to current time if missing
+                                }
+                            } catch (e) {
+                                console.error("Error parsing date:", e);
+                                observationTime = new Date(); // Fallback to current time
+                            }
+                            
+                            // Format with options to ensure consistent display
+                            const dateOptions = { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true
+                            };
+                            const formattedTime = observationTime.toLocaleString(undefined, dateOptions);
+                            
+                            // Create weather card HTML
+                            const weatherCard = `
+                                <div class="weather-card" data-station-id="${stationId}">
+                                    <div class="weather-card-header">
+                                        <div>
+                                            <div class="weather-card-title">${stationData.name}</div>
+                                            <div class="weather-card-id">ID: ${stationId}</div>
+                                        </div>
+                                        <div class="weather-icon">
+                                            <i class="fas ${weatherIcon}"></i>
+                                        </div>
+                                    </div>
+                                    <div class="weather-card-main">
+                                        <div class="weather-temp">
+                                            ${stationData.temperature}<span>°C</span>
+                                        </div>
+                                    </div>
+                                    <div class="weather-details">
+                                        <div class="weather-detail-item highlight">
+                                            <div class="detail-label">Humidity</div>
+                                            <div class="detail-value">${stationData.humidity}%</div>
+                                        </div>
+                                        <div class="weather-detail-item highlight">
+                                            <div class="detail-label">Wind</div>
+                                            <div class="detail-value">${stationData.wind_speed} km/h ${getWindDirectionName(stationData.wind_direction)}</div>
+                                        </div>
+                                        <div class="weather-detail-item highlight">
+                                            <div class="detail-label">Pressure</div>
+                                            <div class="detail-value">${stationData.pressure} hPa</div>
+                                        </div>
+                                        <div class="weather-detail-item highlight">
+                                            <div class="detail-label">Precip Rate</div>
+                                            <div class="detail-value">${stationData.precipitation_rate} mm/h</div>
+                                        </div>
+                                        <div class="weather-detail-item highlight">
+                                            <div class="detail-label">Precip Total</div>
+                                            <div class="detail-value">${stationData.precipitation_total} mm</div>
+                                        </div>
+                                    </div>
+                                    <div class="weather-update-time">
+                                        Last updated: ${formattedTime}
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Add the card to the container
+                            $("#weather-content").append(weatherCard);
+                        }
+                    },
+                    error: function(error) {
+                        // Hide loading indicator
+                        $(".loading-indicator").removeClass("show");
+                        $("#weather-content").css("opacity", "1");
+                        
+                        console.error('Error fetching weather data:', error);
+                        
+                        // Show error message
+                        $("#weather-content").html(`
+                            <div class="empty-state" id="empty-weather-message" style="border-color: #dc2626;">
+                                <h3 style="color: #dc2626;">Error Loading Weather Data</h3>
+                                <p>There was a problem fetching weather data. Please try again later.</p>
+                                <button id="retry-weather-btn" class="refresh-btn" style="margin: 24px auto 0;">
+                                    <i class="fas fa-redo"></i> Try Again
+                                </button>
+                            </div>
+                        `);
+                        
+                        // Add retry button handler
+                        $("#retry-weather-btn").click(function() {
+                            fetchWeatherData();
+                        });
+                    }
+                });
+            }
+            
+            // Set up auto-refresh every 15 minutes (900,000 ms)
+            setInterval(fetchWeatherData, 900000);
+            
+            // Handle weather card clicks to show details
+            $(document).on('click', '.weather-card', function() {
+                const stationId = $(this).data('station-id');
+                showWeatherDetails(stationId);
+            });
+            
+            // Close modal when clicking the close button or outside the modal
+            $('.close-modal').click(function() {
+                $('#weather-detail-modal').removeClass('active');
+            });
+            
+            $(document).on('click', function(e) {
+                if ($(e.target).is('#weather-detail-modal')) {
+                    $('#weather-detail-modal').removeClass('active');
+                }
+            });
+            
+            // Function to show weather details in modal
+            function showWeatherDetails(stationId) {
+                $.ajax({
+                    url: '{% url "fetch_weather_data" %}',
+                    method: 'GET',
+                    data: {
+                        station_ids: [stationId]
+                    },
+                    success: function(data) {
+                        if (data[stationId] && !data[stationId].error) {
+                            const stationData = data[stationId];
+                            
+                            // Determine weather icon
+                            let weatherIcon = 'fa-cloud-sun'; // Default icon
+                            if (stationData.precipitation_rate > 0) {
+                                weatherIcon = 'fa-cloud-rain';
+                            } else if (stationData.humidity > 80) {
+                                weatherIcon = 'fa-cloud';
+                            } else if (stationData.temperature > 30) {
+                                weatherIcon = 'fa-sun';
+                            }
+                            
+                            // Check if we have timezone info from the server
+                            const timezoneInfo = stationData.timezone_info || { name: 'UTC', offset: '+0000' };
+                            console.log('Server timezone info:', timezoneInfo);
+                            
+                            try {
+                                // Fix date parsing - handle both date strings and timestamp strings
+                                const obsTime = stationData.observation_time;
+                                if (obsTime && obsTime !== 'N/A') {
+                                    // Check if it's a year in the future (like 2025) which indicates wrong date
+                                    if (obsTime.includes('2025')) {
+                                        // Adjust the year to current year
+                                        const currentYear = new Date().getFullYear();
+                                        const correctedTime = obsTime.replace('2025', currentYear);
+                                        observationTime = new Date(correctedTime);
+                                    } else {
+                                        // If timestamp doesn't include timezone, append the server's timezone offset
+                                        if (!obsTime.includes('+') && !obsTime.includes('-', 10)) {
+                                            const timeWithZone = `${obsTime} ${timezoneInfo.offset}`;
+                                            observationTime = new Date(timeWithZone);
+                                        } else {
+                                            observationTime = new Date(obsTime);
+                                        }
+                                    }
+                                    
+                                    // Apply timezone offset correction if needed
+                                    // This handles the case where the server time and local time differ
+                                    const serverUtcOffset = observationTime.getTimezoneOffset();
+                                    const localTime = new Date();
+                                    const localUtcOffset = localTime.getTimezoneOffset();
+                                    
+                                    // If timezone offsets are different, adjust the time
+                                    if (serverUtcOffset !== localUtcOffset) {
+                                        const offsetDiff = localUtcOffset - serverUtcOffset;
+                                        observationTime.setMinutes(observationTime.getMinutes() - offsetDiff);
+                                    }
+                                } else {
+                                    observationTime = new Date(); // Default to current time if missing
+                                }
+                            } catch (e) {
+                                console.error("Error parsing date:", e);
+                                observationTime = new Date(); // Fallback to current time
+                            }
+                            
+                            // Format with options to ensure consistent display
+                            const dateOptions = { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true
+                            };
+                            const formattedTime = observationTime.toLocaleString(undefined, dateOptions);
+                            
+                            // Populate modal with data
+                            $('#modal-station-name').text(stationData.name);
+                            $('#modal-station-id').text(`Station ID: ${stationId}`);
+                            $('#modal-weather-icon').attr('class', `fas ${weatherIcon}`);
+                            $('#modal-temperature').html(`${stationData.temperature}<span>°C</span>`);
+                            $('#modal-update-time').text(`Last updated: ${formattedTime}`);
+                            
+                            // Populate details section
+                            $('#modal-details').html(`
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Humidity</div>
+                                    <div class="modal-detail-value">${stationData.humidity}%</div>
+                                </div>
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Wind Speed</div>
+                                    <div class="modal-detail-value">${stationData.wind_speed} km/h</div>
+                                </div>
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Wind Direction</div>
+                                    <div class="modal-detail-value">${getWindDirectionName(stationData.wind_direction)}</div>
+                                </div>
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Pressure</div>
+                                    <div class="modal-detail-value">${stationData.pressure} hPa</div>
+                                </div>
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Precipitation Rate</div>
+                                    <div class="modal-detail-value">${stationData.precipitation_rate} mm/h</div>
+                                </div>
+                                <div class="modal-detail-item highlight">
+                                    <div class="modal-detail-label">Precipitation Total</div>
+                                    <div class="modal-detail-value">${stationData.precipitation_total} mm</div>
+                                </div>
+                                ${stationData.uv !== 'N/A' && stationData.uv !== null ? `
+                                <div class="modal-detail-item">
+                                    <div class="modal-detail-label">UV Index</div>
+                                    <div class="modal-detail-value">${stationData.uv}</div>
+                                </div>` : ''}
+                                ${stationData.solar_radiation !== 'N/A' && stationData.solar_radiation !== null ? `
+                                <div class="modal-detail-item">
+                                    <div class="modal-detail-label">Solar Radiation</div>
+                                    <div class="modal-detail-value">${stationData.solar_radiation} W/m²</div>
+                                </div>` : ''}
+                            `);
+                            
+                            // Populate history table
+                            if (stationData.logs && stationData.logs.length > 0) {
+                                let historyHtml = '';
+                                stationData.logs.forEach(log => {
+                                    let logTime;
+                                    try {
+                                        // Fix timestamp parsing for logs
+                                        if (log.timestamp && log.timestamp !== 'N/A') {
+                                            // Check if it's a year in the future (like 2025)
+                                            if (log.timestamp.includes('2025')) {
+                                                // Adjust the year to current year
+                                                const currentYear = new Date().getFullYear();
+                                                const correctedTime = log.timestamp.replace('2025', currentYear);
+                                                logTime = new Date(correctedTime);
+                                            } else {
+                                                // Parse with timezone information included from the server
+                                                // The timestamp should now include the timezone offset
+                                                logTime = new Date(log.timestamp);
+                                            }
+                                            
+                                            // Apply timezone offset correction
+                                            // This ensures the server time is properly converted to local time
+                                            const serverUtcOffset = logTime.getTimezoneOffset();
+                                            const localTime = new Date();
+                                            const localUtcOffset = localTime.getTimezoneOffset();
+                                            
+                                            // If timezone offsets are different, adjust the time
+                                            if (serverUtcOffset !== localUtcOffset) {
+                                                const offsetDiff = localUtcOffset - serverUtcOffset;
+                                                logTime.setMinutes(logTime.getMinutes() - offsetDiff);
+                                            }
+                                        } else {
+                                            logTime = new Date(); // Default to current time if missing
+                                        }
+                                    } catch (e) {
+                                        console.error("Error parsing log timestamp:", e);
+                                        logTime = new Date(); // Fallback to current time
+                                    }
+                                    
+                                    // Format with same options for consistency
+                                    const formattedLogTime = logTime.toLocaleString(undefined, dateOptions);
+                                    
+                                    historyHtml += `
+                                        <tr>
+                                            <td>${formattedLogTime}</td>
+                                            <td>${log.temperature}°C</td>
+                                            <td>${log.humidity}%</td>
+                                            <td>${log.wind_speed} km/h</td>
+                                            <td>${log.precipitation_total} mm</td>
+                                        </tr>
+                                    `;
+                                });
+                                $('#modal-history-data').html(historyHtml);
+                            } else {
+                                $('#modal-history-data').html('<tr><td colspan="5">No historical data available yet</td></tr>');
+                            }
+                            
+                            // Show the modal
+                            $('#weather-detail-modal').addClass('active');
+                        } else {
+                            alert('Error loading weather details. Please try again.');
+                        }
+                    },
+                    error: function(error) {
+                        console.error('Error fetching weather details:', error);
+                        alert('Error loading weather details. Please try again.');
+                    }
+                });
+            }
+
+            // Handle sidebar toggle for weather updates responsiveness
+            $('.sidebar-toggle-btn').click(function() {
+                $('.main').toggleClass('sidebar-hidden');
+                $('.header-container').toggleClass('sidebar-hidden');
+                $('.card-container').toggleClass('sidebar-hidden');
+                
+                // Adjust the weather content grid after transition
+                setTimeout(function() {
+                    const weatherContent = $('.weather-content');
+                    if (weatherContent.length) {
+                        // Force a reflow of the grid layout
+                        weatherContent.css('display', 'none');
+                        weatherContent[0].offsetHeight; // Force reflow
+                        weatherContent.css('display', 'grid');
+                    }
+                }, 400); // Wait for transition to complete
+            });
+        });
+    </script>
+
+</body>
+
+</html> 

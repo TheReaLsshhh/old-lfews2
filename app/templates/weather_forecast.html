@@ -1,0 +1,1115 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast</title>
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f7f8fa !important;
+            color: #222;
+        }
+        
+        .page-header {
+            background-color: #024CAA;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: width 0.4s ease, margin-left 0.4s ease;
+        }
+        
+        .header-container.sidebar-hidden {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title i {
+            font-size: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .current-date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0px 12px;
+            border-radius: 6px;
+        }
+        
+        .current-date i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 250px;
+            padding: 80px 0 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: margin-left 0.4s ease, width 0.4s ease;
+        }
+
+        .main.sidebar-hidden {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .card-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
+            padding: 32px 32px 24px 32px;
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 24px;
+            transition: width 0.4s ease, max-width 0.4s ease;
+        }
+
+        .card-container.sidebar-hidden {
+            max-width: 1600px;
+        }
+
+        .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 1.08rem;
+            margin-bottom: 28px;
+        }
+
+        .forecast-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+            transition: all 0.4s ease;
+        }
+
+        .forecast-location-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px solid #024CAA;
+            position: relative;
+            transition: all 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        
+        .forecast-location-card:hover {
+            box-shadow: 0 8px 24px rgba(2, 76, 170, 0.15);
+            transform: translateY(-5px);
+            border-color: #0168fa;
+        }
+        
+        .forecast-location-card:active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(2, 76, 170, 0.2);
+        }
+        
+        .forecast-location-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, #024CAA, #76e095);
+            transform: scaleX(0);
+            transform-origin: 0 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .forecast-location-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .forecast-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #eaeaea;
+            padding-bottom: 12px;
+        }
+
+        .forecast-card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #024CAA;
+        }
+
+        .forecast-card-location {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .forecast-days {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .forecast-day {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .forecast-day:hover {
+            background-color: #f1f5f9;
+            transform: translateX(4px);
+        }
+        
+        .forecast-day-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .forecast-day-date {
+            min-width: 80px;
+        }
+        
+        .forecast-day-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .forecast-day-full {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .forecast-day-icon {
+            font-size: 1.7rem;
+            color: #024CAA;
+            width: 30px;
+            text-align: center;
+        }
+        
+        .forecast-day-temp {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .forecast-max-temp {
+            font-weight: 600;
+            color: #e11d48;
+        }
+        
+        .forecast-min-temp {
+            color: #0284c7;
+        }
+        
+        .forecast-update-time {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 16px;
+            text-align: right;
+            font-style: italic;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px dashed #e0e0e0;
+            text-align: center;
+            width: 100%;
+            height: 300px;
+            grid-column: 1 / -1;
+            transition: all 0.3s ease;
+        }
+        
+        .empty-state:hover {
+            border-color: #024CAA;
+            background: rgba(2, 76, 170, 0.02);
+        }
+
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+
+        .empty-state p {
+            color: #999;
+            font-size: 1.1rem;
+            max-width: 400px;
+        }
+
+        .refresh-btn {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .loading-indicator {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .loading-indicator.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(2, 76, 170, 0.3);
+            border-radius: 50%;
+            border-top-color: #024CAA;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal styles */
+        .forecast-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .forecast-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 900px;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .forecast-modal.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 24px;
+            color: #666;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            background-color: #f7f8fa;
+        }
+        
+        .close-modal:hover {
+            background-color: #eaeaea;
+            color: #333;
+            transform: rotate(90deg);
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .modal-title {
+            flex: 1;
+        }
+        
+        .modal-location-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #024CAA;
+            margin-bottom: 4px;
+        }
+        
+        .modal-location-info {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        .modal-weather-icon {
+            font-size: 3.5rem;
+            color: #024CAA;
+            margin-left: 16px;
+        }
+        
+        .modal-forecast-date {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .modal-hourly-forecast {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 12px 0;
+            margin-bottom: 24px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        
+        .modal-hourly-forecast::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .modal-hourly-forecast::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        
+        .modal-hourly-forecast::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+        
+        .hourly-item {
+            min-width: 90px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .hourly-item:hover {
+            background-color: #f1f5f9;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        .hour-time {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        
+        .hour-icon {
+            font-size: 1.7rem;
+            color: #024CAA;
+            margin: 4px 0;
+        }
+        
+        .hour-temp {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        
+        .hour-details {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+        }
+        
+        .modal-daily-summary {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .summary-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .summary-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .summary-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .modal-forecast-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 16px;
+            border-top: 1px solid #eaeaea;
+        }
+        
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: none;
+            background-color: #f1f5f9;
+            color: #333;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-btn:hover {
+            background-color: #e2e8f0;
+            transform: translateY(-2px);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .modal-update-time {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 24px;
+            text-align: right;
+            font-style: italic;
+        }
+        
+        /* Pulse animation for refresh button */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(2, 76, 170, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0);
+            }
+        }
+        
+        .refresh-btn:hover {
+            animation: pulse 1.5s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+            
+            .main {
+                margin-left: 0;
+                padding: 80px 20px 20px;
+            }
+            
+            .card-container {
+                padding: 24px;
+            }
+            
+            .forecast-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-container">
+            <div class="header-title">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Weather Forecast</span>
+            </div>
+            <div class="header-actions">
+                <div class="current-date">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <div class="card-container">
+            <div class="section-header">
+                <span>7-Day Weather Forecast</span>
+                <button id="refresh-forecast-btn" class="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+            </div>
+            <div class="section-desc">Weather forecasts with hourly updates for your monitored locations powered by Open-Meteo</div>
+
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+                <span>Loading forecast data...</span>
+            </div>
+
+            <div id="forecast-content" class="forecast-content">
+                <!-- Forecast cards will be dynamically added here -->
+                <div class="empty-state" id="empty-forecast-message">
+                    <h3>No Active Forecast Locations</h3>
+                    <p>No forecast locations are currently active. Please check the Settings page to add or activate forecast locations.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Detail Modal -->
+    <div id="forecast-detail-modal" class="forecast-modal">
+        <div class="modal-content">
+            <button class="close-modal">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <div class="modal-title">
+                    <div class="modal-location-name" id="modal-location-name"></div>
+                    <div class="modal-location-info" id="modal-location-info"></div>
+                </div>
+                <div class="modal-weather-icon">
+                    <i class="fas" id="modal-weather-icon"></i>
+                </div>
+            </div>
+            
+            <div class="modal-forecast-date" id="modal-forecast-date">Today, January 1</div>
+            
+            <div class="modal-hourly-forecast" id="modal-hourly-forecast">
+                <!-- Hourly forecast items will be added here dynamically -->
+            </div>
+            
+            <div class="modal-daily-summary">
+                <div class="summary-title">Daily Summary</div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Temperature</div>
+                        <div class="summary-value" id="summary-temperature">
+                            <span id="summary-min-temp">15°C</span> - <span id="summary-max-temp">28°C</span>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Precipitation</div>
+                        <div class="summary-value" id="summary-precipitation">30%</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Humidity</div>
+                        <div class="summary-value" id="summary-humidity">65%</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Dew Point</div>
+                        <div class="summary-value" id="summary-dew-point">14°C</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-forecast-navigation">
+                <button class="nav-btn" id="prev-day-btn" disabled>
+                    <i class="fas fa-chevron-left"></i> Previous Day
+                </button>
+                <button class="nav-btn" id="next-day-btn">
+                    Next Day <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="modal-update-time" id="modal-update-time">Last updated: Just now</div>
+        </div>
+    </div>
+
+    <!-- Add JavaScript for forecast functionality -->
+    <script>
+        $(document).ready(function() {
+            // Set current date
+            const currentDate = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            $("#currentDate").text(currentDate.toLocaleDateString('en-US', dateOptions));
+            
+            // Fetch forecast data on page load
+            fetchForecastData();
+            
+            // Refresh button click handler
+            $("#refresh-forecast-btn").click(function() {
+                fetchForecastData();
+            });
+            
+            // Function to fetch forecast data from the API
+            function fetchForecastData() {
+                // Show loading indicator
+                $(".loading-indicator").addClass("show");
+                $("#forecast-content").css("opacity", "0.5");
+                
+                $.ajax({
+                    url: '{% url "fetch_forecast_data" %}',
+                    method: 'GET',
+                    success: function(data) {
+                        // Hide loading indicator
+                        $(".loading-indicator").removeClass("show");
+                        $("#forecast-content").css("opacity", "1");
+                        
+                        // Clear existing content
+                        $("#forecast-content").empty();
+                        
+                        // Check if we have any data
+                        if (Object.keys(data).length === 0) {
+                            $("#forecast-content").html(`
+                                <div class="empty-state" id="empty-forecast-message">
+                                    <h3>No Active Forecast Locations</h3>
+                                    <p>No forecast locations are currently active. Please check the Settings page to add or activate forecast locations.</p>
+                                </div>
+                            `);
+                            return;
+                        }
+                        
+                        // Process and display the forecast data
+                        for (const stationId in data) {
+                            const stationData = data[stationId];
+                            
+                            // Skip if there's an error
+                            if (stationData.error) {
+                                console.error(`Error for station ${stationId}:`, stationData.error);
+                                
+                                // Add error card
+                                $("#forecast-content").append(`
+                                    <div class="forecast-location-card" style="border-color: #dc2626;">
+                                        <div class="forecast-card-header">
+                                            <div>
+                                                <div class="forecast-card-title">${stationData.name || 'Unknown Location'}</div>
+                                                <div class="forecast-card-location">${stationData.location || 'Unknown'}</div>
+                                            </div>
+                                            <div class="forecast-icon" style="color: #dc2626; font-size: 1.7rem;">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </div>
+                                        </div>
+                                        <div style="text-align: center; padding: 20px 0;">
+                                            <p style="color: #dc2626; font-weight: 500; margin-bottom: 8px;">Error Loading Forecast Data</p>
+                                            <p style="color: #666; font-size: 0.9rem;">${stationData.error}</p>
+                                        </div>
+                                    </div>
+                                `);
+                                continue;
+                            }
+                            
+                            // Get days data
+                            const days = stationData.days || [];
+                            
+                            // Format update time
+                            let updateTime = "Unknown";
+                            try {
+                                const updateDate = new Date(stationData.update_time);
+                                updateTime = updateDate.toLocaleString();
+                            } catch (e) {
+                                console.error("Error parsing update time:", e);
+                            }
+                            
+                            // Generate HTML for each day
+                            let daysHtml = '';
+                            
+                            // Limit to 7 days
+                            const displayDays = days.slice(0, 7);
+                            
+                            displayDays.forEach((day, index) => {
+                                // Get day name
+                                const dayDate = new Date(day.date);
+                                const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'short' });
+                                const fullDate = dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                
+                                daysHtml += `
+                                    <div class="forecast-day" data-station-id="${stationId}" data-day-index="${index}">
+                                        <div class="forecast-day-left">
+                                            <div class="forecast-day-date">
+                                                <div class="forecast-day-name">${dayName}</div>
+                                                <div class="forecast-day-full">${fullDate}</div>
+                                            </div>
+                                            <div class="forecast-day-icon">
+                                                <i class="fas ${day.icon}"></i>
+                                            </div>
+                                        </div>
+                                        <div class="forecast-day-temp">
+                                            <div class="forecast-max-temp">${Math.round(day.max_temp)}°C</div>
+                                            <div class="forecast-min-temp">${Math.round(day.min_temp)}°C</div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            
+                            // Create forecast location card
+                            const forecastCard = `
+                                <div class="forecast-location-card" data-station-id="${stationId}">
+                                    <div class="forecast-card-header">
+                                        <div>
+                                            <div class="forecast-card-title">${stationData.name}</div>
+                                            <div class="forecast-card-location">${stationData.location}</div>
+                                        </div>
+                                    </div>
+                                    <div class="forecast-days">
+                                        ${daysHtml}
+                                    </div>
+                                    <div class="forecast-update-time">
+                                        Last updated: ${updateTime}
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Add the card to the container
+                            $("#forecast-content").append(forecastCard);
+                        }
+                        
+                        // Store the complete forecast data in a global variable for modal use
+                        window.forecastData = data;
+                    },
+                    error: function(error) {
+                        // Hide loading indicator
+                        $(".loading-indicator").removeClass("show");
+                        $("#forecast-content").css("opacity", "1");
+                        
+                        console.error('Error fetching forecast data:', error);
+                        
+                        // Show error message
+                        $("#forecast-content").html(`
+                            <div class="empty-state" id="empty-forecast-message" style="border-color: #dc2626;">
+                                <h3 style="color: #dc2626;">Error Loading Forecast Data</h3>
+                                <p>There was a problem fetching forecast data. Please try again later.</p>
+                                <button id="retry-forecast-btn" class="refresh-btn" style="margin: 24px auto 0;">
+                                    <i class="fas fa-redo"></i> Try Again
+                                </button>
+                            </div>
+                        `);
+                        
+                        // Add retry button handler
+                        $("#retry-forecast-btn").click(function() {
+                            fetchForecastData();
+                        });
+                    }
+                });
+            }
+            
+            // Set up auto-refresh every 3 hours (10,800,000 ms)
+            setInterval(fetchForecastData, 10800000);
+            
+            // Variables to track current station and day in the modal
+            let currentStationId = null;
+            let currentDayIndex = 0;
+            
+            // Handle forecast day clicks to show details
+            $(document).on('click', '.forecast-day', function() {
+                const stationId = $(this).data('station-id');
+                const dayIndex = $(this).data('day-index');
+                
+                showForecastDetails(stationId, dayIndex);
+            });
+            
+            // Close modal when clicking the close button or outside the modal
+            $('.close-modal').click(function() {
+                $('#forecast-detail-modal').removeClass('active');
+            });
+            
+            $(document).on('click', function(e) {
+                if ($(e.target).is('#forecast-detail-modal')) {
+                    $('#forecast-detail-modal').removeClass('active');
+                }
+            });
+            
+            // Handle navigation buttons
+            $('#prev-day-btn').click(function() {
+                if (currentDayIndex > 0) {
+                    showForecastDetails(currentStationId, currentDayIndex - 1);
+                }
+            });
+            
+            $('#next-day-btn').click(function() {
+                const stationData = window.forecastData[currentStationId];
+                if (stationData && stationData.days && currentDayIndex < stationData.days.length - 1) {
+                    showForecastDetails(currentStationId, currentDayIndex + 1);
+                }
+            });
+            
+            // Function to show forecast details in modal
+            function showForecastDetails(stationId, dayIndex) {
+                // Ensure we have the data
+                if (!window.forecastData || !window.forecastData[stationId]) {
+                    alert('Forecast data not available. Please refresh the page.');
+                    return;
+                }
+                
+                // Update tracking variables
+                currentStationId = stationId;
+                currentDayIndex = dayIndex;
+                
+                const stationData = window.forecastData[stationId];
+                const dayData = stationData.days[dayIndex];
+                
+                // Set basic modal info
+                $('#modal-location-name').text(stationData.name);
+                $('#modal-location-info').text(`${stationData.location} (${stationData.latitude}, ${stationData.longitude})`);
+                $('#modal-weather-icon').attr('class', `fas ${dayData.icon}`);
+                
+                // Format and set date
+                const dayDate = new Date(dayData.date);
+                const isToday = new Date().toDateString() === dayDate.toDateString();
+                const dateString = dayDate.toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                $('#modal-forecast-date').text(isToday ? `Today, ${dateString}` : dateString);
+                
+                // Set the daily summary
+                $('#summary-min-temp').text(`${Math.round(dayData.min_temp)}°C`);
+                $('#summary-max-temp').text(`${Math.round(dayData.max_temp)}°C`);
+                $('#summary-precipitation').text(`${Math.round(dayData.avg_precipitation_probability)}%`);
+                
+                // Calculate average humidity and dew point from hourly data
+                let avgHumidity = 0;
+                let avgDewPoint = 0;
+                let count = 0;
+                
+                dayData.hourly.forEach(hour => {
+                    avgHumidity += hour.humidity;
+                    avgDewPoint += hour.dew_point;
+                    count++;
+                });
+                
+                if (count > 0) {
+                    avgHumidity = Math.round(avgHumidity / count);
+                    avgDewPoint = Math.round(avgDewPoint / count);
+                }
+                
+                $('#summary-humidity').text(`${avgHumidity}%`);
+                $('#summary-dew-point').text(`${avgDewPoint}°C`);
+                
+                // Generate hourly forecast HTML
+                let hourlyHtml = '';
+                
+                dayData.hourly.forEach(hour => {
+                    // Determine icon based on precipitation probability
+                    let hourIcon = 'fa-cloud-sun';
+                    
+                    if (hour.precipitation_probability >= 70) {
+                        hourIcon = 'fa-cloud-showers-heavy';
+                    } else if (hour.precipitation_probability >= 40) {
+                        hourIcon = 'fa-cloud-rain';
+                    } else if (hour.precipitation_probability >= 20) {
+                        hourIcon = 'fa-cloud-sun-rain';
+                    } else if (hour.temperature >= 30) {
+                        hourIcon = 'fa-sun';
+                    } else if (hour.temperature <= 5) {
+                        hourIcon = 'fa-snowflake';
+                    }
+                    
+                    hourlyHtml += `
+                        <div class="hourly-item">
+                            <div class="hour-time">${hour.time}</div>
+                            <div class="hour-icon">
+                                <i class="fas ${hourIcon}"></i>
+                            </div>
+                            <div class="hour-temp">${Math.round(hour.temperature)}°C</div>
+                            <div class="hour-details">
+                                <div>💧 ${hour.precipitation_probability}%</div>
+                                <div>💦 ${hour.humidity}%</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                $('#modal-hourly-forecast').html(hourlyHtml);
+                
+                // Set update time
+                let updateTime = "Unknown";
+                try {
+                    const updateDate = new Date(stationData.update_time);
+                    updateTime = updateDate.toLocaleString();
+                } catch (e) {
+                    console.error("Error parsing update time:", e);
+                }
+                $('#modal-update-time').text(`Last updated: ${updateTime}`);
+                
+                // Handle navigation buttons
+                $('#prev-day-btn').prop('disabled', dayIndex === 0);
+                $('#next-day-btn').prop('disabled', dayIndex >= stationData.days.length - 1);
+                
+                // Show the modal
+                $('#forecast-detail-modal').addClass('active');
+            }
+
+            // Handle sidebar toggle for forecast page responsiveness
+            $('.sidebar-toggle-btn').click(function() {
+                $('.main').toggleClass('sidebar-hidden');
+                $('.header-container').toggleClass('sidebar-hidden');
+                $('.card-container').toggleClass('sidebar-hidden');
+                
+                // Adjust the forecast content grid after transition
+                setTimeout(function() {
+                    const forecastContent = $('.forecast-content');
+                    if (forecastContent.length) {
+                        // Force a reflow of the grid layout
+                        forecastContent.css('display', 'none');
+                        forecastContent[0].offsetHeight; // Force reflow
+                        forecastContent.css('display', 'grid');
+                    }
+                    
+                    // Adjust modal position if it's open
+                    const modal = $('#forecast-detail-modal');
+                    if (modal.hasClass('active')) {
+                        // Force modal content reflow
+                        const modalContent = modal.find('.modal-content');
+                        modalContent.css('transform', 'translateY(20px)');
+                        setTimeout(() => {
+                            modalContent.css('transform', 'translateY(0)');
+                        }, 50);
+                    }
+                }, 400); // Wait for transition to complete
+            });
+        });
+    </script>
+
+</body>
+
+</html> 

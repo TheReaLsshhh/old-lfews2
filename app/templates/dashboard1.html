@@ -1,0 +1,1813 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Level Dashboard</title>
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f7f8fa !important;
+            color: #222;
+        }
+        
+        .page-header {
+            background-color: #024CAA;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: width 0.4s ease, margin-left 0.4s ease;
+        }
+        
+        .header-container.sidebar-hidden {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title i {
+            font-size: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .current-date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0px 12px;
+            border-radius: 6px;
+        }
+        
+        .current-date i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 250px;
+            padding: 80px 0 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: margin-left 0.4s ease, width 0.4s ease;
+        }
+
+        .main.sidebar-hidden {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .card-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
+            padding: 32px 32px 24px 32px;
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 24px;
+            transition: width 0.4s ease, max-width 0.4s ease;
+        }
+
+        .card-container.sidebar-hidden {
+            max-width: 1600px;
+        }
+
+        .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 1.08rem;
+            margin-bottom: 28px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: auto;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .graph {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px solid #024CAA;
+            position: relative;
+            height: 320px;
+            transition: all 0.4s ease;
+        }
+        
+        .graph:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .legend-container {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            z-index: 10;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .legend-container:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            transition: transform 0.2s ease;
+        }
+        
+        .legend-item:hover .legend-color {
+            transform: scale(1.2);
+        }
+
+        .date-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px solid #024CAA;
+        }
+
+        .date-picker-container label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .date-picker-container input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            color: #222;
+            background: #f7f8fa;
+            transition: all 0.2s ease;
+        }
+        
+        .date-picker-container input[type="date"]:hover {
+            border-color: #024CAA;
+        }
+        
+        .date-picker-container input[type="date"]:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+
+        .date-picker-container button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #update-graphs {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+        }
+
+        #update-graphs:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        #update-graphs:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        #clear-graphs {
+            background: #f7f8fa;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+        }
+
+        #clear-graphs:hover {
+            background: #fee2e2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.15);
+        }
+        
+        #clear-graphs:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .simulate-btn {
+            display: none;
+        }
+        
+        .simulate-btn.simulating {
+            display: none;
+        }
+        
+        .simulate-btn.simulating:hover {
+            display: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(3px);
+        }
+        
+        .modal.show {
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #fff;
+            margin: 4% auto;
+            padding: 28px 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            width: 90%;
+            max-width: 580px;
+            position: relative;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            border-top: 5px solid #024CAA;
+        }
+        
+        .modal.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 22px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-modal:hover {
+            color: #333;
+            background-color: #f0f0f0;
+            transform: rotate(90deg);
+        }
+
+        .thresholds {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 12px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #eaeaea;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #444;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #f7f8fa;
+            color: #333;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-group input:hover {
+            border-color: #024CAA;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+
+        .section-header {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .section-desc {
+            font-size: 1rem;
+            margin-bottom: 18px;
+        }
+        
+        .modal .section-header {
+            font-size: 1.3rem;
+            color: #024CAA;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .modal .section-desc {
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            color: #666;
+        }
+        
+        .modal .section-header.subsection {
+            font-size: 1.05rem;
+            color: #333;
+            margin: 24px 0 12px 0;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        #submit-station {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        #submit-station:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        #submit-station:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .alert-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+            z-index: 2000;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid transparent;
+        }
+        
+        .alert-popup.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .alert-popup.yellow { 
+            border-top: 4px solid #fbbf24; 
+        }
+        .alert-popup.yellow.show {
+            animation: pulse-yellow 1.5s infinite;
+        }
+        
+        .alert-popup.orange { 
+            border-top: 4px solid #fb923c; 
+        }
+        .alert-popup.orange.show {
+            animation: pulse-orange 1.5s infinite;
+        }
+        
+        .alert-popup.red { 
+            border-top: 4px solid #dc2626; 
+        }
+        .alert-popup.red.show {
+            animation: pulse-red 1.5s infinite;
+        }
+        
+        .alert-popup.green { 
+            border-top: 4px solid #10b981; 
+        }
+        .alert-popup.green.show {
+            animation: pulse-green 1.5s infinite;
+        }
+
+        .alert-popup h3 {
+            color: #222;
+            margin-bottom: 12px;
+            font-size: 1.4rem;
+        }
+
+        .alert-popup p {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        
+        .alert-popup p strong {
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .alert-popup button {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .alert-popup button:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        .alert-popup button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Pulse animations for different alert types */
+        @keyframes pulse-yellow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+                border-color: rgba(251, 191, 36, 0.9);
+                border-width: 2px;
+            }
+            50% {
+                box-shadow: 0 0 20px 0 rgba(251, 191, 36, 0.5);
+                border-color: rgba(251, 191, 36, 1);
+                border-width: 3px;
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+                border-color: rgba(251, 191, 36, 0.9);
+                border-width: 2px;
+            }
+        }
+        
+        @keyframes pulse-orange {
+            0% {
+                box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.7);
+                border-color: rgba(251, 146, 60, 0.9);
+                border-width: 2px;
+            }
+            50% {
+                box-shadow: 0 0 20px 0 rgba(251, 146, 60, 0.5);
+                border-color: rgba(251, 146, 60, 1);
+                border-width: 3px;
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.7);
+                border-color: rgba(251, 146, 60, 0.9);
+                border-width: 2px;
+            }
+        }
+        
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+                border-color: rgba(220, 38, 38, 0.9);
+                border-width: 2px;
+            }
+            50% {
+                box-shadow: 0 0 20px 0 rgba(220, 38, 38, 0.5);
+                border-color: rgba(220, 38, 38, 1);
+                border-width: 3px;
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+                border-color: rgba(220, 38, 38, 0.9);
+                border-width: 2px;
+            }
+        }
+        
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                border-color: rgba(16, 185, 129, 0.9);
+                border-width: 2px;
+            }
+            50% {
+                box-shadow: 0 0 20px 0 rgba(16, 185, 129, 0.5);
+                border-color: rgba(16, 185, 129, 1);
+                border-width: 3px;
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                border-color: rgba(16, 185, 129, 0.9);
+                border-width: 2px;
+            }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 2px dashed #e0e0e0;
+            text-align: center;
+            width: 100%;
+            height: 300px;
+            grid-column: 1 / -1;
+            transition: all 0.3s ease;
+        }
+        
+        .empty-state:hover {
+            border-color: #024CAA;
+            background: rgba(2, 76, 170, 0.02);
+        }
+
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+
+        .empty-state p {
+            color: #999;
+            font-size: 1.1rem;
+            max-width: 400px;
+        }
+
+        @media (max-width: 1200px) {
+            .content {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .graph {
+                height: 280px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+            
+            .main {
+                margin-left: 0;
+                padding: 80px 20px 20px;
+            }
+            .card-container {
+                padding: 24px;
+            }
+            .date-picker-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .row-selector-container {
+                margin-top: 12px;
+                justify-content: flex-start;
+            }
+            .thresholds {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .severity-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .severity-option {
+            display: flex;
+            align-items: center;
+        }
+        
+        .severity-option input[type="radio"] {
+            display: none;
+        }
+        
+        .severity-option label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        
+        .severity-option input[type="radio"]:checked + label {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .severity-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        .station-selection-container {
+            display: none;
+        }
+        
+        .station-selection-option {
+            display: none;
+        }
+        
+        .station-selection-option label {
+            display: none;
+        }
+        
+        .station-selection-option input[type="checkbox"] {
+            display: none;
+        }
+        
+        .station-selection-option:first-child {
+            display: none;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #f7f8fa;
+            color: #333;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            margin-top: 6px;
+        }
+        
+        .form-control:hover {
+            border-color: #024CAA;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+        
+        .primary-btn {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            margin-top: 24px;
+            letter-spacing: 0.3px;
+        }
+        
+        .primary-btn:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        .primary-btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Fullscreen Graph Modal Styles */
+        .fullscreen-graph-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+        .fullscreen-graph-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+        .fullscreen-graph-content {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            padding: 32px 32px 24px 32px;
+            max-width: 90vw;
+            max-height: 90vh;
+            width: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            animation: popIn 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .fullscreen-graph-close {
+            position: absolute;
+            right: 24px;
+            top: 18px;
+            font-size: 2rem;
+            color: #024CAA;
+            background: #f7f8fa;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+            z-index: 10;
+        }
+        .fullscreen-graph-close:hover {
+            background: #024CAA;
+            color: #fff;
+            transform: rotate(90deg) scale(1.1);
+        }
+        .fullscreen-plotly-container {
+            width: 80vw;
+            height: 70vh;
+            min-width: 320px;
+            min-height: 320px;
+            margin: 0 auto;
+        }
+        @media (max-width: 900px) {
+            .fullscreen-plotly-container {
+                width: 98vw;
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-container">
+            <div class="header-title">
+                <i class="fas fa-water"></i>
+                <span>Water Level Dashboard</span>
+            </div>
+            <div class="header-actions">
+                <div class="current-date">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+
+        <div class="card-container">
+            <div class="date-picker-container" style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; box-shadow: none; padding: 0 0 24px 0; margin-bottom: 0;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                    <span style="font-size: 2rem; font-weight: bold; color: #222; margin-bottom: 2px;">Water Level Stations</span>
+                    <span style="font-size: 1.08rem; color: #666;">Current water level conditions from monitoring stations</span>
+                </div>
+                <div class="row-selector-container" style="display: flex; align-items: center; gap: 12px;">
+                    <label for="graph-rows" style="color: #666; font-size: 0.9rem; white-space: nowrap;">Graphs per Row:</label>
+                    <select id="graph-rows" class="form-control" style="width: 80px; padding: 6px 10px; font-size: 0.85rem;">
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Remove hardcoded graphs div and keep only dynamic stations div -->
+            <div id="dynamic-stations" class="content">
+                <!-- Dynamically added stations will appear here -->
+                <div class="empty-state" id="empty-dashboard-message">
+                    <h3>No Active Stations</h3>
+                    <p>No water level monitoring stations are currently active. Please check the Settings page to activate stations.</p>
+                </div>
+            </div>
+
+            <div class="historical-container content" style="display: none;">
+                <!-- Historical graphs will be generated here when needed -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Add alarm sound element -->
+    <audio id="alarm-sound" preload="auto">
+        <source src="{% static 'sounds/alarm.mp3' %}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- Fullscreen Graph Modal -->
+    <div class="fullscreen-graph-modal" id="fullscreenGraphModal">
+        <div class="fullscreen-graph-content">
+            <button class="fullscreen-graph-close" id="closeFullscreenGraph" title="Close Full View"><i class="fas fa-times"></i></button>
+            <div class="fullscreen-plotly-container" id="fullscreenPlotlyContainer"></div>
+        </div>
+    </div>
+
+    <!-- Add JavaScript for modal functionality -->
+    <script>
+        $(document).ready(function() {
+            // Set current date
+            const currentDate = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            $("#currentDate").text(currentDate.toLocaleDateString('en-US', dateOptions));
+            
+            // Set default date range (yesterday to today)
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // Format dates as YYYY-MM-DD
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            
+            $('#start-date').val(formatDate(yesterday));
+            $('#end-date').val(formatDate(today));
+            
+            // Alert tracking variables
+            const warningCounts = {};
+            const alertActive = {};
+            const locationNames = {};
+            
+            // Function to get color based on value and thresholds
+            function getColor(value, thresholds) {
+                if (value === 0) return 'gray';
+                for (let t of thresholds) {
+                    if (value <= t.max) return t.color;
+                }
+                return 'red';
+            }
+            
+            // Function to get fill color for plotting
+            function getFillColor(color) {
+                switch (color) {
+                    case 'gray': return 'rgba(128, 128, 128, 0.3)';
+                    case 'green': return 'rgba(16, 185, 129, 0.3)';  // #10B981
+                    case 'yellow': return 'rgba(251, 191, 36, 0.3)'; // #FBBF24
+                    case 'orange': return 'rgba(251, 146, 60, 0.3)'; // #FB923C
+                    case 'red': return 'rgba(220, 38, 38, 0.3)';     // #DC2626
+                    default: return 'rgba(128, 128, 128, 0.1)';
+                }
+            }
+            
+            // Function to play alarm sound for alerts
+            let alarmTimeout;
+            let isAlarmPlaying = false;
+            
+            function playAlarmSound() {
+                if (!isAlarmPlaying) {
+                    isAlarmPlaying = true;
+                    const alarm = document.getElementById('alarm-sound');
+                    
+                    // Ensure it's unmuted and volume is set
+                    alarm.muted = false;
+                    alarm.volume = 1.0;
+                    
+                    // Reset time to beginning
+                    alarm.currentTime = 0;
+                    
+                    // Play the alarm
+                    const playPromise = alarm.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => {
+                            console.log("Alarm sound playing successfully");
+                            
+                            // Stop the alarm after 10 seconds
+                            alarmTimeout = setTimeout(() => {
+                                alarm.pause();
+                                alarm.currentTime = 0;
+                                isAlarmPlaying = false;
+                            }, 10000);
+                        })
+                        .catch(error => {
+                            console.error("Autoplay prevented:", error);
+                            isAlarmPlaying = false;
+                        });
+                    }
+                }
+            }
+            
+            function stopAlarmSound() {
+                if (isAlarmPlaying) {
+                    clearTimeout(alarmTimeout);
+                    const alarm = document.getElementById('alarm-sound');
+                    alarm.pause();
+                    alarm.currentTime = 0;
+                    isAlarmPlaying = false;
+                }
+            }
+            
+            // Function to check for alerts
+            function checkForAlerts(graphId, color, value) {
+                // Initialize warning counts for this graph if needed
+                if (!warningCounts[graphId]) {
+                    warningCounts[graphId] = { 
+                        orange: 0, 
+                        red: 0, 
+                        acknowledged: false,
+                        dataPointCount: 0,
+                        lastAlertTime: 0
+                    };
+                }
+                
+                // If we're in a normal state (green/yellow), reset all warning states
+                if (color !== 'orange' && color !== 'red') {
+                    warningCounts[graphId].orange = 0;
+                    warningCounts[graphId].red = 0;
+                    warningCounts[graphId].acknowledged = false;
+                    // Don't reset count and time - we still want to throttle alerts
+                    return;
+                }
+
+                // Increment data point counter for this graph
+                warningCounts[graphId].dataPointCount += 1;
+                
+                // Get current time in milliseconds
+                const now = new Date().getTime();
+                
+                // Only show alert if:
+                // 1. We've seen 5 or more data points since the last alert, OR
+                // 2. It's been more than 300000 seconds (83 hours) since the last alert
+                const dataPointThreshold = 5;
+                const timeThreshold = 300000000; // 300000 seconds = 83 hours in milliseconds
+                
+                if (color === 'orange' || color === 'red') {
+                    const timeSinceLastAlert = now - warningCounts[graphId].lastAlertTime;
+                    const dataPointsSinceLastAlert = warningCounts[graphId].dataPointCount;
+                    
+                    // Check if we should show an alert based on throttling criteria
+                    if (dataPointsSinceLastAlert >= dataPointThreshold || timeSinceLastAlert >= timeThreshold) {
+                        // Show alert and reset counters
+                        showAlert(graphId, color, value);
+                        
+                        // Reset counter and update last alert time
+                        warningCounts[graphId].dataPointCount = 0;
+                        warningCounts[graphId].lastAlertTime = now;
+                        
+                        console.log(`Alert shown for ${graphId} - Color: ${color}, Value: ${value}`);
+                        console.log(`Criteria: Data points: ${dataPointsSinceLastAlert}, Time since last: ${timeSinceLastAlert}ms`);
+                    } else {
+                        console.log(`Alert throttled for ${graphId} - Color: ${color}, Value: ${value}`);
+                        console.log(`Current counts: Data points: ${dataPointsSinceLastAlert}, Time since last: ${timeSinceLastAlert}ms`);
+                    }
+                }
+            }
+            
+            // Function to show alert popup
+            function showAlert(graphId, level, value) {
+                // Only show alerts for orange and red levels
+                if (level !== 'orange' && level !== 'red') {
+                    return;
+                }
+                
+                const graphElement = document.getElementById(graphId);
+                const graphContainer = graphElement.closest('.graph');
+                
+                // Create alert popup with detailed information
+                const alertPopup = document.createElement('div');
+                alertPopup.className = `alert-popup ${level}`;
+                
+                // Add initial styling before show class is added
+                alertPopup.style.borderWidth = '2px';
+                alertPopup.style.borderStyle = 'solid';
+                
+                switch(level) {
+                    case 'yellow':
+                        alertPopup.style.borderColor = 'rgba(251, 191, 36, 0.9)';
+                        break;
+                    case 'orange':
+                        alertPopup.style.borderColor = 'rgba(251, 146, 60, 0.9)';
+                        break;
+                    case 'red':
+                        alertPopup.style.borderColor = 'rgba(220, 38, 38, 0.9)';
+                        break;
+                    default:
+                        alertPopup.style.borderColor = 'transparent';
+                }
+                
+                // Customize message based on level
+                const message = level === 'red' ? 
+                    'CRITICAL ALERT: Water level has reached dangerous levels!' :
+                    'WARNING: Water level has reached concerning levels!';
+                
+                // Get station name
+                const stationName = locationNames[graphId] || 'Water Level Station';
+                
+                // Get current time
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                
+                alertPopup.innerHTML = `
+                    <h3>${message}</h3>
+                    <p><strong>${stationName}</strong></p>
+                    <p>Current water level: ${value.toFixed(2)} cm</p>
+                    <p>Status: ${level.toUpperCase()}</p>
+                    <p>Time: ${timeStr}</p>
+                    <button class="dismiss-alert">Acknowledge Alert</button>
+                `;
+
+                // Add to document body with fixed positioning
+                alertPopup.style.position = 'fixed';
+                alertPopup.style.zIndex = '1000';
+                alertPopup.style.width = '340px';
+                
+                document.body.appendChild(alertPopup);
+                
+                // Trigger animation after a small delay
+                setTimeout(() => {
+                    alertPopup.classList.add('show');
+                }, 10);
+                
+                // Auto-play alarm sound
+                playAlarmSound();
+            }
+            
+            // Function to update legend display
+            function updateLegendDisplay(stationId, stationData) {
+                const graphContainer = $(`#station-${stationId}`);
+                if (graphContainer.length === 0) return;
+                
+                const legendContainer = graphContainer.find('.legend-container');
+                
+                // Get threshold values from the data
+                const greenMax = stationData.green_threshold;
+                const yellowMax = stationData.yellow_threshold;
+                const orangeMax = stationData.orange_threshold;
+                const redMin = orangeMax + 0.01;
+                
+                legendContainer.html(`
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #10B981"></div>
+                        <span>1-${greenMax.toFixed(2)}</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FBBF24"></div>
+                        <span>${(greenMax + 0.01).toFixed(2)}-${yellowMax.toFixed(2)}</span>
+                </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FB923C"></div>
+                        <span>${(yellowMax + 0.01).toFixed(2)}-${orangeMax.toFixed(2)}</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #DC2626"></div>
+                        <span>${redMin.toFixed(2)}+</span>
+                    </div>
+                `);
+            }
+            
+            // Function to fetch water level data and update charts
+            function fetchWaterLevelData() {
+                const startDate = $('#start-date').val() || formatDate(yesterday);
+                const endDate = $('#end-date').val() || formatDate(today);
+                
+                $.ajax({
+                    url: '{% url "fetch_water_level" %}',
+                    method: 'GET',
+                    data: {
+                        start_date: startDate,
+                        end_date: endDate
+                    },
+                    success: function(data) {
+                        // Hide empty state if we have data
+                        if (Object.keys(data).length > 0) {
+                            $('#empty-dashboard-message').hide();
+                        }
+                        
+                        // Log the complete water level data response
+                        console.log('Water Level Data Response:', data);
+                        
+                        // Process each station's data
+                        for (const stationId in data) {
+                            const stationData = data[stationId];
+                            
+                            // Store station name in locationNames for alerts
+                            locationNames[`chart-${stationId}`] = stationData.name;
+                            
+                            // Check if we already have a div for this station
+                            if ($(`#station-${stationId}`).length === 0) {
+                                // Create a new div for this station
+                                const stationDiv = $('<div>', {
+                                    id: `station-${stationId}`,
+                                    class: 'graph',
+                                    html: `
+                                        <div class="legend-container">
+                                            <div class="legend-item">
+                                                <div class="legend-color" style="background: #10B981"></div>
+                                                <span>1-${stationData.green_threshold.toFixed(2)}</span>
+                </div>
+                                            <div class="legend-item">
+                                                <div class="legend-color" style="background: #FBBF24"></div>
+                                                <span>${(stationData.green_threshold + 0.01).toFixed(2)}-${stationData.yellow_threshold.toFixed(2)}</span>
+                    </div>
+                                            <div class="legend-item">
+                                                <div class="legend-color" style="background: #FB923C"></div>
+                                                <span>${(stationData.yellow_threshold + 0.01).toFixed(2)}-${stationData.orange_threshold.toFixed(2)}</span>
+                    </div>
+                                            <div class="legend-item">
+                                                <div class="legend-color" style="background: #DC2626"></div>
+                                                <span>${(stationData.orange_threshold + 0.01).toFixed(2)}+</span>
+                </div>
+                                        </div>
+                                        <div id="chart-${stationId}"></div>
+                                    `
+                                });
+                                
+                                // Add the station div to the container
+                                $('#dynamic-stations').append(stationDiv);
+                            } else {
+                                // Update the legend display with current thresholds
+                                updateLegendDisplay(stationId, stationData);
+                            }
+                            
+                            // Update or create the chart
+                            updateChart(stationId, stationData);
+                        }
+                    },
+                    error: function(error) {
+                        console.error('Error fetching water level data:', error);
+                    }
+                });
+            }
+            
+            // Function to update or create a chart for a station
+            function updateChart(stationId, stationData) {
+                const chartDomId = `chart-${stationId}`;
+                
+                // Extract data for plotting
+                const values = stationData.values ? stationData.values.map(v => parseFloat(v)) : [];
+                const dates = stationData.dates || [];
+                
+                // Log debugging information
+                console.log(`Station ${stationId} data:`, {
+                    values: values.length ? `${values.length} values` : 'no values',
+                    dates: dates.length ? `${dates.length} dates` : 'no dates'
+                });
+                
+                // Create thresholds based on station data
+                const thresholds = [
+                    { max: stationData.green_threshold, color: 'green' },
+                    { max: stationData.yellow_threshold, color: 'yellow' },
+                    { max: stationData.orange_threshold, color: 'orange' }
+                    // Above orange threshold will be red
+                ];
+                
+                // Create traces for Plotly
+                const traces = [];
+                let latestColor = 'gray';
+                
+                // Clear any existing indicators
+                $(`#station-${stationId} .modbus-warning`).remove();
+                
+                // Check if we have ANY data to plot
+                if (values.length === 0 || dates.length === 0) {
+                    // No data available at all - show empty graph with message
+                    Plotly.newPlot(chartDomId, [{
+                        x: [],
+                        y: [],
+                        type: 'scatter',
+                        mode: 'lines+markers'
+                    }], {
+                        ...createLayout(stationData.name, chartDomId),
+                        annotations: [{
+                            text: 'No Data Available',
+                            showarrow: false,
+                            font: {
+                                color: '#DC2626',
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            x: 0.5,
+                            y: 0.5,
+                            xref: 'paper',
+                            yref: 'paper'
+                        }]
+                    });
+                    return;
+                }
+                
+                // Process each data point
+                for (let i = 0; i < values.length; i++) {
+                    let value = values[i];
+                    const color = getColor(value, thresholds);
+                    const fillColor = getFillColor(color);
+                    
+                    // Save the latest color for alert checking
+                    if (i === values.length - 1) {
+                        latestColor = color;
+                    }
+                    
+                    // Add markers
+                    traces.push({
+                        x: [dates[i]],
+                        y: [value.toFixed(2)],
+                        mode: 'markers',
+                        marker: {
+                            size: 8,
+                            color: color === 'green' ? '#10B981' : 
+                                  color === 'yellow' ? '#FBBF24' : 
+                                  color === 'orange' ? '#FB923C' : 
+                                  color === 'red' ? '#DC2626' : 
+                                  'gray',
+                            line: {
+                                color: color === 'yellow' ? 'black' : 'white',
+                                width: color === 'yellow' ? 2 : 1
+                            }
+                        },
+                        showlegend: false,
+                        hoverinfo: 'x+y',
+                        hovertemplate: '%{y} cm<br>%{x|%I:%M %p<br>%b %d, %Y}<extra></extra>'
+                    });
+                    
+                    // Add line segments with gradient fill, but only if the gap is less than 2 minutes
+                    if (i > 0) {
+                        // Check time gap
+                        const currentTime = new Date(dates[i]);
+                        const prevTime = new Date(dates[i - 1]);
+                        const diffMs = currentTime - prevTime;
+                        const diffMinutes = diffMs / (1000 * 60); // Convert to minutes
+                        
+                        // Only connect with line if gap is less than 2 minutes
+                        if (diffMinutes <= 2) {
+                            traces.push({
+                                x: [dates[i - 1], dates[i]],
+                                y: [values[i - 1].toFixed(2), value.toFixed(2)],
+                                mode: 'lines',
+                                line: {
+                                    color: color === 'green' ? '#10B981' : 
+                                          color === 'yellow' ? '#FBBF24' : 
+                                          color === 'orange' ? '#FB923C' : 
+                                          color === 'red' ? '#DC2626' : 
+                                          'gray',
+                                    width: 2
+                                },
+                                fill: 'tozeroy',
+                                fillcolor: fillColor,
+                                showlegend: false,
+                                hoverinfo: 'none'
+                            });
+                        } else {
+                            console.log(`Gap of ${diffMinutes.toFixed(1)} minutes detected between data points - not connecting line`);
+                        }
+                    }
+                }
+                
+                // Create layout for the chart
+                const layout = createLayout(stationData.name, chartDomId);
+                
+                // --- Add Modbus Poll vertical lines if present ---
+                if (Array.isArray(stationData.modbus_poll_times) && stationData.modbus_poll_times.length > 0) {
+                    layout.shapes = layout.shapes || [];
+                    stationData.modbus_poll_times.forEach(function(pollTime) {
+                        layout.shapes.push({
+                            type: 'line',
+                            x0: pollTime,
+                            x1: pollTime,
+                            y0: 0,
+                            y1: 1,
+                            yref: 'paper',
+                            line: {
+                                color: '#2563eb',
+                                width: 2,
+                                dash: 'dashdot'
+                            },
+                            opacity: 0.85
+                        });
+                    });
+                    // Add annotation for the first poll line (optional, for clarity)
+                    layout.annotations = layout.annotations || [];
+                    layout.annotations.push({
+                        x: stationData.modbus_poll_times[0],
+                        y: 1.02,
+                        yref: 'paper',
+                        text: 'Modbus Poll',
+                        showarrow: false,
+                        font: { color: '#2563eb', size: 12, family: 'Arial Black, Arial, sans-serif' },
+                        bgcolor: 'rgba(37,99,235,0.08)',
+                        bordercolor: '#2563eb',
+                        borderwidth: 1,
+                        borderpad: 2,
+                        align: 'center',
+                        opacity: 0.95
+                    });
+                }
+                
+                // Add value box for the latest data point
+                if (values.length > 0) {
+                    const latestValue = values[values.length - 1];
+                    const latestDate = dates[dates.length - 1];
+                    
+                    // Format the time for display
+                    const currentTime = new Date(latestDate);
+                    const timeStr = currentTime.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: true 
+                    });
+                    
+                    layout.annotations = layout.annotations || [];
+                    layout.annotations.push({
+                        x: latestDate,
+                        y: latestValue,
+                        text: `${latestValue.toFixed(2)} cm<br>${timeStr}`,
+                        font: {
+                            color: 'black',
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        showarrow: false,
+                        yshift: 25,
+                        bgcolor: 'rgba(255, 255, 255, 0.95)',
+                        bordercolor: 'black',
+                        borderwidth: 2,
+                        borderpad: 4,
+                        pad: { b: 5, l: 5, r: 5, t: 5 },
+                        xanchor: 'center',
+                        yanchor: 'bottom',
+                        align: 'center'
+                    });
+                    
+                    // Check for alerts
+                    const now = new Date();
+                    const latestDateObj = new Date(latestDate);
+                    const timeDiff = now - latestDateObj;
+                    
+                    // Only show alert if the data is recent (within last 5 minutes)
+                    if (timeDiff <= 300000) { // 300000 ms = 5 minutes
+                        checkForAlerts(chartDomId, latestColor, latestValue);
+                    }
+                }
+                
+                // Draw the chart
+                Plotly.newPlot(chartDomId, traces, layout, {
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: [
+                        'pan2d',
+                        'select2d',
+                        'lasso2d',
+                        'resetScale2d',
+                        'toImage',
+                        'autoScale2d',
+                        'hoverClosestCartesian',
+                        'hoverCompareCartesian'
+                    ],
+                    scrollZoom: true,
+                    displaylogo: false,
+                    responsive: true
+                });
+            }
+            
+            // Function to create layout for Plotly charts
+            function createLayout(title, graphId) {
+                // Calculate the time range for the last 30 minutes
+                const now = new Date();
+                const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60000);
+                
+                // Set y-axis range (default)
+                const yRange = [0, 500];
+                
+                return {
+                    width: undefined, // Let it be responsive
+                    height: 260,
+                    title: {
+                        text: title,
+                        font: {
+                            size: 16,
+                            weight: 600,
+                            color: '#024CAA'
+                        },
+                        y: 0.95
+                    },
+                    xaxis: {
+                        type: 'date',
+                        tickfont: {
+                            color: '#555',
+                            size: 10
+                        },
+                        range: [thirtyMinutesAgo, now],
+                        tickformat: '%I:%M %p<br>%b %d',  // 12-hour format with AM/PM
+                        gridcolor: 'rgba(0, 0, 0, 0.05)',
+                        gridwidth: 1,
+                        hoverformat: '%I:%M %p<br>%b %d, %Y',  // 12-hour format for hover tooltip
+                        linecolor: '#e0e0e0'
+                    },
+                    yaxis: {
+                        range: yRange,
+                        tickformat: ".2f",
+                        ticksuffix: "",
+                        tickfont: {
+                            color: '#555',
+                            size: 10
+                        },
+                        gridcolor: 'rgba(0, 0, 0, 0.05)',
+                        gridwidth: 1,
+                        linecolor: '#e0e0e0'
+                    },
+                    margin: {
+                        l: 50,
+                        r: 25,
+                        t: 40,
+                        b: 45
+                    },
+                    paper_bgcolor: '#ffffff',
+                    plot_bgcolor: '#ffffff',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        color: '#333'
+                    },
+                    showlegend: false,
+                    hovermode: 'closest',
+                    hoverdistance: 10000,
+                    hoverlabel: {
+                        bgcolor: '#333',
+                        bordercolor: '#333',
+                        font: {
+                            color: 'white',
+                            size: 12
+                        },
+                        padding: 10
+                    }
+                };
+            }
+            
+            // Handle dismiss alert clicks with event delegation
+            $(document).on('click', '.dismiss-alert', function() {
+                const alertPopup = $(this).closest('.alert-popup');
+                alertPopup.removeClass('show');
+                
+                // Remove from DOM after animation completes
+                setTimeout(() => {
+                    alertPopup.remove();
+                }, 300);
+                
+                stopAlarmSound();
+            });
+            
+            // Initial fetch
+            fetchWaterLevelData();
+            
+            // Set up interval to fetch data every minute (60000 ms)
+            setInterval(fetchWaterLevelData, 60000);
+            
+            // Update charts when the user clicks the Generate button
+            $('#update-graphs').click(function() {
+                fetchWaterLevelData();
+            });
+            
+            // Clear charts when the user clicks the Clear button
+            $('#clear-graphs').click(function() {
+                $('#dynamic-stations').html(`
+                    <div class="empty-state" id="empty-dashboard-message">
+                        <h3>No Active Stations</h3>
+                        <p>No water level monitoring stations are currently active. Please check the Settings page to activate stations.</p>
+        </div>
+                `);
+            });
+
+            // Handle sidebar toggle for dashboard responsiveness
+            $('.sidebar-toggle-btn').click(function() {
+                $('.main').toggleClass('sidebar-hidden');
+                $('.header-container').toggleClass('sidebar-hidden');
+                $('.card-container').toggleClass('sidebar-hidden');
+                
+                // Trigger Plotly to replot all charts for proper resizing
+                setTimeout(function() {
+                    $('.graph').each(function() {
+                        const graphId = $(this).find('[id^="chart-"]').attr('id');
+                        if (graphId) {
+                            Plotly.relayout(graphId, {
+                                autosize: true
+                            });
+                        }
+                    });
+                }, 400); // Wait for transition to complete
+            });
+
+            // Row selector functionality
+            $('#graph-rows').change(function() {
+                const rowCount = parseInt($(this).val());
+                const dynamicStations = $('#dynamic-stations');
+                
+                // Update grid template columns based on selected row count
+                dynamicStations.css('grid-template-columns', `repeat(${rowCount}, 1fr)`);
+                
+                // Trigger Plotly to replot all charts for proper resizing
+                setTimeout(function() {
+                    $('.graph').each(function() {
+                        const graphId = $(this).find('[id^="chart-"]').attr('id');
+                        if (graphId) {
+                            Plotly.relayout(graphId, {
+                                autosize: true
+                            });
+                        }
+                    });
+                }, 100); // Small delay to ensure layout is updated
+            });
+
+            // --- Fullscreen Graph Modal Logic ---
+            let lastFullGraphData = null;
+            let lastFullGraphLayout = null;
+            let lastFullGraphConfig = null;
+            let lastFullGraphTitle = '';
+            let lastFullGraphPollLines = null;
+
+            // Delegate click event to .graph for dynamic content
+            $(document).on('click', '.graph', function(e) {
+                // Prevent click if clicking on legend or inside modebar
+                if ($(e.target).closest('.legend-container, .modebar').length > 0) return;
+                const chartDiv = $(this).find('[id^="chart-"]')[0];
+                if (!chartDiv) return;
+                // Get the Plotly data and layout from the chart
+                const gd = chartDiv;
+                // Use Plotly's API to get current data/layout
+                const plotData = gd.data ? JSON.parse(JSON.stringify(gd.data)) : [];
+                const plotLayout = gd.layout ? JSON.parse(JSON.stringify(gd.layout)) : {};
+                // Try to get Modbus Poll lines from the original stationData if available
+                let pollLines = null;
+                let latestValue = null;
+                let latestDate = null;
+                // Try to find the stationId from the chartDiv id
+                const stationIdMatch = chartDiv.id.match(/^chart-(.+)$/);
+                if (stationIdMatch) {
+                    const stationId = stationIdMatch[1];
+                    // Try to get the latest stationData from the last AJAX call
+                    if (window.lastWaterLevelData && window.lastWaterLevelData[stationId]) {
+                        const stationData = window.lastWaterLevelData[stationId];
+                        if (Array.isArray(stationData.modbus_poll_times)) {
+                            pollLines = stationData.modbus_poll_times;
+                        }
+                        // Get latest value and date for annotation
+                        if (Array.isArray(stationData.values) && Array.isArray(stationData.dates) && stationData.values.length > 0 && stationData.dates.length > 0) {
+                            latestValue = parseFloat(stationData.values[stationData.values.length - 1]);
+                            latestDate = stationData.dates[stationData.dates.length - 1];
+                        }
+                    }
+                }
+                // Save for re-rendering
+                lastFullGraphData = plotData;
+                lastFullGraphLayout = plotLayout;
+                lastFullGraphConfig = {
+                    displayModeBar: true,
+                    scrollZoom: true,
+                    displaylogo: false,
+                    responsive: true
+                };
+                lastFullGraphTitle = plotLayout.title && plotLayout.title.text ? plotLayout.title.text : '';
+                lastFullGraphPollLines = pollLines;
+                // Adjust layout for fullscreen
+                plotLayout.width = undefined;
+                plotLayout.height = undefined;
+                plotLayout.margin = { l: 60, r: 40, t: 60, b: 60 };
+                plotLayout.title = {
+                    text: lastFullGraphTitle + ' (Full View)',
+                    font: { size: 22, color: '#024CAA', weight: 700 },
+                    y: 0.97
+                };
+                // --- Add Modbus Poll vertical lines to fullscreen modal ---
+                if (Array.isArray(pollLines) && pollLines.length > 0) {
+                    plotLayout.shapes = plotLayout.shapes || [];
+                    pollLines.forEach(function(pollTime) {
+                        plotLayout.shapes.push({
+                            type: 'line',
+                            x0: pollTime,
+                            x1: pollTime,
+                            y0: 0,
+                            y1: 1,
+                            yref: 'paper',
+                            line: {
+                                color: '#2563eb',
+                                width: 2,
+                                dash: 'dashdot'
+                            },
+                            opacity: 0.85
+                        });
+                    });
+                    plotLayout.annotations = plotLayout.annotations || [];
+                    plotLayout.annotations.push({
+                        x: pollLines[0],
+                        y: 1.02,
+                        yref: 'paper',
+                        text: 'Modbus Poll',
+                        showarrow: false,
+                        font: { color: '#2563eb', size: 14, family: 'Arial Black, Arial, sans-serif' },
+                        bgcolor: 'rgba(37,99,235,0.08)',
+                        bordercolor: '#2563eb',
+                        borderwidth: 1,
+                        borderpad: 2,
+                        align: 'center',
+                        opacity: 0.95
+                    });
+                }
+                // --- Add latest value & time annotation for fullscreen modal ---
+                if (latestValue !== null && latestDate !== null) {
+                    // Format the time for display
+                    const currentTime = new Date(latestDate);
+                    const timeStr = currentTime.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    plotLayout.annotations = plotLayout.annotations || [];
+                    plotLayout.annotations.push({
+                        x: latestDate,
+                        y: latestValue,
+                        text: `${latestValue.toFixed(2)} cm<br>${timeStr}`,
+                        font: {
+                            color: 'black',
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        showarrow: false,
+                        yshift: 25,
+                        bgcolor: 'rgba(255, 255, 255, 0.95)',
+                        bordercolor: 'black',
+                        borderwidth: 2,
+                        borderpad: 4,
+                        pad: { b: 5, l: 5, r: 5, t: 5 },
+                        xanchor: 'center',
+                        yanchor: 'bottom',
+                        align: 'center'
+                    });
+                }
+                // Show modal
+                $('#fullscreenGraphModal').addClass('show');
+                // Render Plotly in modal
+                Plotly.newPlot('fullscreenPlotlyContainer', plotData, plotLayout, {
+                    displayModeBar: true,
+                    scrollZoom: true,
+                    displaylogo: false,
+                    responsive: true
+                });
+            });
+            // Close modal on close button
+            $('#closeFullscreenGraph').on('click', function() {
+                $('#fullscreenGraphModal').removeClass('show');
+                // Clean up Plotly modal
+                Plotly.purge('fullscreenPlotlyContainer');
+            });
+            // Close modal when clicking outside content
+            $('#fullscreenGraphModal').on('mousedown', function(e) {
+                if ($(e.target).is('#fullscreenGraphModal')) {
+                    $('#fullscreenGraphModal').removeClass('show');
+                    Plotly.purge('fullscreenPlotlyContainer');
+                }
+            });
+            // Optional: ESC key closes modal
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    $('#fullscreenGraphModal').removeClass('show');
+                    Plotly.purge('fullscreenPlotlyContainer');
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>

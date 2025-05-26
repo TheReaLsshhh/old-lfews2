@@ -1,0 +1,572 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Modern Sidebar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+
+    <style>
+    :root {
+        --sidebar-bg: #024CAA;
+        --sidebar-hover: #0168fa;
+        --sidebar-active: #01316e;
+        --accent-color: #76e095;
+        --text-color: #ffffff;
+        --transition-speed: 0.3s;
+    }
+    
+    /* Keep existing styles that aren't being modified */
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #fff;
+    }
+
+    .sidebar {
+        width: 250px !important;
+        background: linear-gradient(to bottom, var(--sidebar-bg), #023b85);
+        padding: 0;
+        position: fixed;
+        height: 100vh;
+        left: 0;
+        top: 0;
+        overflow-y: auto;
+        transition: transform 0.4s ease, box-shadow 0.4s ease;
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent-color) transparent;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    /* WebKit scrollbar styles */
+    .sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background-color: var(--accent-color);
+        border-radius: 10px;
+    }
+
+    .main-content {
+        margin-left: 250px;
+        transition: margin-left 0.4s ease;
+        background: #fff;
+    }
+
+    .main-content.sidebar-hidden {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .sidebar.hidden {
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+
+    .sidebar-header {
+        text-align: center;
+        padding: 24px 16px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 10px;
+    }
+
+    .sidebar-logo {
+        width: 120px;
+        height: auto;
+        display: block;
+        margin: 0 auto 16px;
+        transition: transform var(--transition-speed);
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    }
+    
+    .sidebar-logo:hover {
+        transform: scale(1.05);
+    }
+
+    .sidebar h2 {
+        color: var(--text-color);
+        text-align: center;
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sidebar-menu {
+        padding: 16px;
+        flex-grow: 1;
+    }
+
+    .sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .sidebar ul li {
+        margin: 8px 0;
+    }
+
+    .sidebar ul li .menu-container {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all var(--transition-speed);
+    }
+
+    .sidebar ul li a {
+        color: var(--text-color);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-radius: 8px;
+        transition: all var(--transition-speed);
+        width: 100%;
+        font-size: 14px;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sidebar ul li a i {
+        width: 24px;
+        font-size: 16px;
+        text-align: center;
+        margin-right: 12px;
+        transition: transform var(--transition-speed);
+    }
+
+    .sidebar ul li a:hover {
+        background-color: var(--sidebar-hover);
+        transform: translateX(4px);
+    }
+    
+    .sidebar ul li a:hover i {
+        transform: scale(1.2);
+    }
+
+    .sidebar ul li a:active {
+        transform: translateX(2px) scale(0.98);
+    }
+
+    /* Active menu item styles */
+    .sidebar ul li a.active {
+        background-color: var(--sidebar-active);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        font-weight: 600;
+    }
+    
+    .sidebar ul li a.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background-color: var(--accent-color);
+        box-shadow: 0 0 8px var(--accent-color);
+    }
+
+    .sidebar ul li a.active i {
+        color: var(--accent-color);
+    }
+
+    /* Improve toggle button */
+    .sidebar-toggle-btn {
+        position: fixed;
+        top: 20px;
+        left: 210px;
+        background: rgba(1, 49, 110, 0.8);
+        color: var(--accent-color);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1000;
+        transition: all var(--transition-speed);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        padding: 0;
+    }
+    
+    .sidebar-toggle-btn:hover {
+        background: var(--sidebar-active);
+        transform: scale(1.1);
+    }
+    
+    .sidebar-toggle-btn .sidebar-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .sidebar.hidden + .sidebar-toggle-btn,
+    .sidebar-toggle-btn.sidebar-visible {
+        left: 20px;
+        background: var(--sidebar-bg);
+    }
+    
+    .sidebar-toggle-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(118, 224, 149, 0.5);
+    }
+
+    /* Footer section for logout */
+    .sidebar-footer {
+        padding: 16px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 12px 16px;
+        background-color: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: var(--text-color);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        border: none;
+    }
+    
+    .logout-btn:hover {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+    }
+    
+    .logout-btn i {
+        margin-right: 12px;
+        width: 24px;
+        text-align: center;
+        font-size: 16px;
+    }
+
+    /* Scoped Logout Modal Styles */
+    .sidebar-logout-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        backdrop-filter: blur(3px);
+    }
+    
+    .sidebar-logout-modal.show {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .sidebar-modal-content {
+        background: #fff;
+        padding: 32px;
+        border-radius: 16px;
+        text-align: center;
+        color: #333;
+        width: 360px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+        transform: scale(0.9);
+        opacity: 0;
+        transition: all 0.3s ease;
+        border-top: 5px solid #ef4444;
+    }
+    
+    .sidebar-logout-modal.show .sidebar-modal-content {
+        transform: scale(1);
+        opacity: 1;
+    }
+    
+    .sidebar-modal-content h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        color: #222;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    
+    .sidebar-modal-content p {
+        margin-bottom: 28px;
+        color: #555;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    .sidebar-modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+    }
+    
+    .sidebar-modal-btn {
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 15px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .sidebar-logout-confirm {
+        background: #ef4444;
+        color: white;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    
+    .sidebar-logout-confirm:hover {
+        background: #dc2626;
+        box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+        transform: translateY(-2px);
+    }
+    
+    .sidebar-logout-cancel {
+        background: #e2e8f0;
+        color: #475569;
+    }
+    
+    .sidebar-logout-cancel:hover {
+        background: #cbd5e1;
+        transform: translateY(-2px);
+    }
+    
+    .sidebar-logout-icon {
+        font-size: 52px;
+        color: #ef4444;
+        margin-bottom: 16px;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+            width: 280px !important;
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .sidebar-toggle-btn {
+            display: none;
+        }
+    }
+    </style>
+
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <img src="{% static 'images/com.png' %}" alt="Logo" class="sidebar-logo">
+        <h2>L F E W S</h2>
+    </div>
+    
+    <div class="sidebar-menu">
+        <ul>
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'dashboard' %}" class="{% if request.path == '/dashboard/' %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'weather_updates' %}" class="{% if request.path == '/weather-updates/' %}active{% endif %}">
+                        <i class="fas fa-cloud-sun"></i>
+                        <span>Weather Updates</span>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'weather_forecast' %}" class="menu-item {% if request.path == '/weather-forecast/' %}active{% endif %}">
+                        <i class="fas fa-calendar-day"></i>
+                        <span>Weather Forecast</span>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'station_map' %}" class="{% if request.path == '/station-map/' %}active{% endif %}">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Station Map</span>
+                    </a>
+                </div>
+            </li>   
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'settings' %}" class="menu-item {% if request.path == '/settings/' %}active{% endif %}">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="menu-container">
+                    <a href="{% url 'activity_logs' %}" class="menu-item {% if request.path == '/activity-logs/' %}active{% endif %}">
+                        <i class="fas fa-history"></i>
+                        <span>Activity Logs</span>
+                    </a>
+                </div>
+            </li>
+        </ul>
+    </div>
+    
+    <div class="sidebar-footer">
+        <button class="logout-btn" onclick="openSidebarLogoutModal()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </div>
+</div>
+
+<!-- Toggle Button: Always visible, outside sidebar -->
+<button class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- Logout Modal - Scoped with a specific class -->
+<div id="sidebarLogoutModal" class="sidebar-logout-modal">
+    <div class="sidebar-modal-content">
+        <i class="fas fa-sign-out-alt sidebar-logout-icon"></i>
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out of your account?</p>
+        <div class="sidebar-modal-actions">
+            <a href="{% url 'admin_logout' %}" class="sidebar-modal-btn sidebar-logout-confirm" onclick="handleLogout()">
+                <i class="fas fa-check-circle" style="margin-right: 8px;"></i> Yes, Logout
+            </a>
+            <button onclick="closeSidebarLogoutModal()" class="sidebar-modal-btn sidebar-logout-cancel">
+                <i class="fas fa-times-circle" style="margin-right: 8px;"></i> Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Toggle sidebar visibility
+    $('.sidebar-toggle-btn').click(function() {
+        $('.sidebar').toggleClass('hidden');
+        $('.main-content').toggleClass('sidebar-hidden');
+        $(this).toggleClass('sidebar-visible');
+    });
+
+    // Handle mobile menu toggle
+    $('.menu-toggle').click(function() {
+        $('.sidebar').toggleClass('active');
+    });
+
+    // Close sidebar when clicking outside on mobile
+    $(document).click(function(e) {
+        if ($(window).width() <= 768) {
+            if (!$(e.target).closest('.sidebar, .menu-toggle, .sidebar-toggle-btn').length) {
+                $('.sidebar').removeClass('active');
+            }
+        }
+    });
+
+    // Reset sidebar on resize
+    $(window).resize(function() {
+        if ($(window).width() > 768) {
+            $('.sidebar').removeClass('active');
+        }
+    });
+});
+
+// Scoped logout modal control functions
+function openSidebarLogoutModal() {
+    document.getElementById('sidebarLogoutModal').classList.add('show');
+}
+
+function closeSidebarLogoutModal() {
+    const modal = document.getElementById('sidebarLogoutModal');
+    modal.classList.remove('show');
+}
+
+// Handle logout actions
+function handleLogout() {
+    // Clear session storage
+    sessionStorage.clear();
+    
+    // Clear localStorage items related to the application
+    localStorage.clear();
+    
+    // Disable browser back/forward cache specifically for this page
+    window.onunload = function(){};
+    
+    // Ensure we can't go back to previous state
+    if (window.history && window.history.pushState) {
+        window.history.pushState('', '', window.location.href);
+        window.onpopstate = function() {
+            window.history.pushState('', '', window.location.href);
+        };
+    }
+    
+    // Clear all cookies (except those needed for the login page)
+    document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
+    // Add a small delay to ensure everything is cleared
+    setTimeout(function() {
+        // Continue with the normal link navigation
+        return true;
+    }, 100);
+}
+
+// Add event listener for page load to handle potential back-button navigation
+window.addEventListener('pageshow', function(event) {
+    // If navigated to via back button (from cache)
+    if (event.persisted) {
+        // Force a reload to ensure fresh state
+        window.location.reload();
+    }
+});
+</script>
+
+</body>
+</html>

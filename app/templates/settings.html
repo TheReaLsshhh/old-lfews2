@@ -1,0 +1,2969 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Level Settings</title>
+    <link rel="icon" href="{% static 'images/norsu.webp' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f7f8fa !important;
+            color: #222;
+        }
+        
+        .page-header {
+            background-color: #024CAA;
+            color: white;
+            padding: 15px 0;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: width 0.4s ease, margin-left 0.4s ease;
+        }
+
+        .header-container.sidebar-hidden {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-title i {
+            font-size: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .current-date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0px 12px;
+            border-radius: 6px;
+        }
+        
+        .current-date i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 250px;
+            padding: 80px 0 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: margin-left 0.4s ease, width 0.4s ease;
+        }
+
+        .main.sidebar-hidden {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .card-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
+            padding: 32px 32px 24px 32px;
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 24px;
+            transition: width 0.4s ease, max-width 0.4s ease;
+        }
+
+        .card-container.sidebar-hidden {
+            max-width: 1600px;
+        }
+
+        .section-header {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 28px;
+        }
+
+        /* Button styles */
+        .action-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .primary-btn {
+            background: #024CAA;
+            color: #fff;
+        }
+
+        /* Pulse animation for primary buttons */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(2, 76, 170, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0);
+            }
+        }
+
+        .primary-btn:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+            animation: pulse 1.5s infinite;
+        }
+
+        .secondary-btn {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .secondary-btn:hover {
+            background: #e9e9e9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .danger-btn {
+            background: #fff;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+        }
+
+        .danger-btn:hover {
+            background: #fee2e2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.15);
+        }
+
+        .success-btn {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .success-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Table styles */
+        .stations-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+        }
+
+        .stations-table th, .stations-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .stations-table th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 0.9rem;
+        }
+
+        .stations-table th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        .stations-table th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        .stations-table tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .stations-table td {
+            font-size: 0.95rem;
+            color: #4b5563;
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+            margin-top: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn.small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background-color: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .flash-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            animation: flashFadeOut 5s forwards;
+            max-width: 100%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            opacity: 1;
+        }
+
+        .flash-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+            animation: flashSuccessPulse 5s forwards;
+        }
+
+        .flash-error {
+            background-color: #fef2f2;
+            color: #b91c1c;
+            border-left: 4px solid #dc2626;
+            animation: flashErrorPulse 5s forwards;
+        }
+
+        @keyframes flashFadeOut {
+            0% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        @keyframes flashSuccessPulse {
+            0% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+            10% { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); }
+            20% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+            30% { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); }
+            40% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        @keyframes flashErrorPulse {
+            0% { box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+            10% { box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4); }
+            20% { box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+            30% { box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4); }
+            40% { box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
+        .header-action {
+            margin-left: auto;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(3px);
+        }
+        
+        .modal.show {
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #fff;
+            margin: 4% auto;
+            padding: 28px 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            width: 90%;
+            max-width: 580px;
+            position: relative;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            border-top: 5px solid #024CAA;
+        }
+        
+        .modal.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 22px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-modal:hover {
+            color: #333;
+            background-color: #f0f0f0;
+            transform: rotate(90deg);
+        }
+
+        .modal .section-header {
+            font-size: 1.3rem;
+            color: #024CAA;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .modal .section-desc {
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            color: #666;
+        }
+        
+        .modal .section-header.subsection {
+            font-size: 1.05rem;
+            color: #333;
+            margin: 24px 0 12px 0;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .thresholds {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 12px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #eaeaea;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #444;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #f7f8fa;
+            color: #333;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-group input:hover {
+            border-color: #024CAA;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+
+        #submit-station {
+            background: #024CAA;
+            color: #fff;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        #submit-station:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+        }
+        
+        #submit-station:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+            
+            .main {
+                margin-left: 0;
+                padding: 80px 20px 20px;
+            }
+            .card-container {
+                padding: 20px;
+            }
+            .thresholds {
+                grid-template-columns: 1fr;
+            }
+            .header-action {
+                margin-left: 0;
+                margin-top: 16px;
+            }
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            .stations-table {
+                min-width: 800px;
+            }
+        }
+
+        /* Tab styles */
+        .tabs-container {
+            margin-bottom: 24px;
+        }
+        
+        .tabs-navigation {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 24px;
+        }
+        
+        .tab-button {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tab-button:hover {
+            color: #024CAA;
+            background-color: rgba(2, 76, 170, 0.05);
+        }
+        
+        .tab-button.active {
+            color: #024CAA;
+            border-bottom: 2px solid #024CAA;
+        }
+        
+        .tab-content {
+            position: relative;
+        }
+        
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+
+        .report-card-header {
+            background: linear-gradient(135deg, #024CAA 0%, #0367e0 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .report-card-header i {
+            font-size: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .report-card-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .report-card-body {
+            padding: 24px;
+        }
+
+        .report-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #f7f8fa;
+            color: #333;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        .form-select:hover {
+            border-color: #024CAA;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+
+        .date-range-inputs {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .date-range-inputs span {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .date-range-inputs input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #f7f8fa;
+            color: #333;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .date-range-inputs input:hover {
+            border-color: #024CAA;
+        }
+
+        .date-range-inputs input:focus {
+            outline: none;
+            border-color: #024CAA;
+            box-shadow: 0 0 0 2px rgba(2, 76, 170, 0.1);
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            background: #f7f8fa;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #444;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-group label:hover {
+            color: #024CAA;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #024CAA;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-group input[type="checkbox"]:checked {
+            background-color: #024CAA;
+        }
+
+        .checkbox-group input[type="checkbox"]:checked::after {
+            content: "✓";
+            position: absolute;
+            color: white;
+            font-size: 12px;
+            left: 2px;
+            top: -2px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .add-button {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .add-button:after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: inherit;
+            animation: pulse 2s infinite;
+            z-index: -1;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(2, 76, 170, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0);
+            }
+        }
+
+        .primary-btn:hover {
+            background: #01316e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(1, 49, 110, 0.2);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Chart Report Animation Styles */
+        .chart-format-selected {
+            animation: pulse-blue 1.5s;
+        }
+        
+        @keyframes pulse-blue {
+            0% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(2, 76, 170, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(2, 76, 170, 0);
+            }
+        }
+        
+        .highlight-station-select {
+            animation: highlight-border 1.5s;
+        }
+        
+        @keyframes highlight-border {
+            0% {
+                border-color: #e0e0e0;
+            }
+            50% {
+                border-color: #024CAA;
+                border-width: 2px;
+                box-shadow: 0 0 8px rgba(2, 76, 170, 0.4);
+            }
+            100% {
+                border-color: #e0e0e0;
+                border-width: 1px;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-container">
+            <div class="header-title">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+            <div class="header-actions">
+                <div class="current-date">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <div class="card-container">
+            <!-- Tab Navigation -->
+            <div class="tabs-container">
+                <div class="tabs-navigation">
+                    <button class="tab-button active" data-tab="water-level-tab">
+                        <i class="fas fa-water"></i> Water Level Stations
+                    </button>
+                    <button class="tab-button" data-tab="weather-tab">
+                        <i class="fas fa-cloud-sun"></i> Weather Stations
+                    </button>
+                    <button class="tab-button" data-tab="forecast-tab">
+                        <i class="fas fa-calendar-alt"></i> Forecast Stations
+                    </button>
+                    <button class="tab-button" data-tab="reports-tab">
+                        <i class="fas fa-file-alt"></i> Reports
+                    </button>
+                </div>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash-message {% if message.tags == 'success' %}flash-success{% else %}flash-error{% endif %}">
+                        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Water Level Stations Tab -->
+                <div id="water-level-tab" class="tab-pane active">
+                    <div class="section-header">
+                        <span>Water Level Stations</span>
+                        <button id="add-station-btn" class="action-btn primary-btn header-action add-button">
+                            <i class="fas fa-plus"></i> Add Water Station
+                        </button>
+                    </div>
+                    <div class="section-desc">Manage your water level monitoring stations</div>
+
+                    <div class="table-container">
+                        <table class="stations-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Station ID</th>
+                                    <th>Status</th>
+                                    <th>Thresholds</th>
+                                    <th>Date Added</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if stations %}
+                                    {% for station in stations %}
+                                        <tr>
+                                            <td>{{ station.name }}</td>
+                                            <td>{{ station.station_id }}</td>
+                                            <td>
+                                                <span class="status-badge {% if station.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                                    {{ station.status|title }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span title="Green: 0 to {{ station.green_threshold }}cm&#10;Yellow: {{ station.green_threshold }} to {{ station.yellow_threshold }}cm&#10;Orange: {{ station.yellow_threshold }} to {{ station.orange_threshold }}cm&#10;Red: Above {{ station.orange_threshold }}cm">
+                                                    <i class="fas fa-info-circle"></i> View
+                                                </span>
+                                            </td>
+                                            <td>{{ station.date_created|date:"M d, Y" }}</td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="action-btn small secondary-btn view-station" data-id="{{ station.id }}" data-name="{{ station.name }}" data-station-id="{{ station.station_id }}" data-green="{{ station.green_threshold }}" data-yellow="{{ station.yellow_threshold }}" data-orange="{{ station.orange_threshold }}" data-red="{{ station.red_threshold }}" data-ip="{{ station.modbus_ip }}" data-port="{{ station.modbus_port }}" data-unit="{{ station.unit_id }}" data-register="{{ station.register_address }}" data-latitude="{{ station.latitude }}" data-longitude="{{ station.longitude }}">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                    <button class="action-btn small secondary-btn edit-station" data-id="{{ station.id }}" data-name="{{ station.name }}" data-station-id="{{ station.station_id }}" data-green="{{ station.green_threshold }}" data-yellow="{{ station.yellow_threshold }}" data-orange="{{ station.orange_threshold }}" data-red="{{ station.red_threshold }}" data-ip="{{ station.modbus_ip }}" data-port="{{ station.modbus_port }}" data-unit="{{ station.unit_id }}" data-register="{{ station.register_address }}">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <form method="POST" style="display: inline;" class="toggle-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="toggle_status">
+                                                        <input type="hidden" name="station_id" value="{{ station.id }}">
+                                                        <button type="submit" class="action-btn small {% if station.status == 'active' %}danger-btn{% else %}success-btn{% endif %} toggle-status-btn" data-station-id="{{ station.id }}">
+                                                            <i class="fas {% if station.status == 'active' %}fa-toggle-off{% else %}fa-toggle-on{% endif %}"></i>
+                                                            {% if station.status == 'active' %}Disable{% else %}Enable{% endif %}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 40px;">
+                                            <i class="fas fa-info-circle" style="font-size: 24px; color: #9ca3af; margin-bottom: 12px;"></i>
+                                            <p>No stations have been added yet. Click the "Add Station" button to create your first water level station.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Weather Stations Tab -->
+                <div id="weather-tab" class="tab-pane">
+                    <div class="section-header">
+                        <span>Weather Stations</span>
+                        <button id="add-weather-station-btn" class="action-btn primary-btn header-action add-button">
+                            <i class="fas fa-plus"></i> Add Weather Station
+                        </button>
+                    </div>
+                    <div class="section-desc">Manage your weather monitoring stations</div>
+
+                    <div class="table-container">
+                        <table class="stations-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Station ID</th>
+                                    <th>Status</th>
+                                    <th>Date Added</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if weather_stations %}
+                                    {% for station in weather_stations %}
+                                        <tr>
+                                            <td>{{ station.name }}</td>
+                                            <td>{{ station.station_id }}</td>
+                                            <td>
+                                                <span class="status-badge {% if station.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                                    {{ station.status|title }}
+                                                </span>
+                                            </td>
+                                            <td>{{ station.date_added|date:"M d, Y" }}</td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="action-btn small secondary-btn view-weather-station" data-id="{{ station.id }}" data-name="{{ station.name }}" data-station-id="{{ station.station_id }}" data-latitude="{{ station.latitude }}" data-longitude="{{ station.longitude }}">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                    <button class="action-btn small secondary-btn edit-weather-station" data-id="{{ station.id }}" data-name="{{ station.name }}" data-station-id="{{ station.station_id }}">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <form method="POST" style="display: inline;" class="toggle-weather-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="toggle_weather_status">
+                                                        <input type="hidden" name="active_tab" value="weather-tab">
+                                                        <input type="hidden" name="station_id" value="{{ station.id }}">
+                                                        <button type="submit" class="action-btn small {% if station.status == 'active' %}danger-btn{% else %}success-btn{% endif %} toggle-weather-status-btn" data-station-id="{{ station.id }}">
+                                                            <i class="fas {% if station.status == 'active' %}fa-toggle-off{% else %}fa-toggle-on{% endif %}"></i>
+                                                            {% if station.status == 'active' %}Disable{% else %}Enable{% endif %}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; padding: 40px;">
+                                            <i class="fas fa-info-circle" style="font-size: 24px; color: #9ca3af; margin-bottom: 12px;"></i>
+                                            <p>No weather stations have been added yet. Click the "Add Weather Station" button to create your first weather station.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Weather Forecast Stations Tab -->
+                <div id="forecast-tab" class="tab-pane">
+                    <div class="section-header">
+                        <span>Weather Forecast Stations</span>
+                        <button id="add-forecast-station-btn" class="action-btn primary-btn header-action add-button">
+                            <i class="fas fa-plus"></i> Add Forecast Location
+                        </button>
+                    </div>
+                    <div class="section-desc">Manage your weather forecast locations using Open-Meteo API</div>
+
+                    <div class="table-container">
+                        <table class="stations-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Location</th>
+                                    <th>Coordinates</th>
+                                    <th>Status</th>
+                                    <th>Date Added</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if forecast_stations %}
+                                    {% for station in forecast_stations %}
+                                        <tr>
+                                            <td>{{ station.name }}</td>
+                                            <td>{{ station.location }}</td>
+                                            <td>{{ station.latitude }}, {{ station.longitude }}</td>
+                                            <td>
+                                                <span class="status-badge {% if station.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                                    {{ station.status|title }}
+                                                </span>
+                                            </td>
+                                            <td>{{ station.date_added|date:"M d, Y" }}</td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="action-btn small secondary-btn view-forecast-station" 
+                                                            data-id="{{ station.id }}" 
+                                                            data-name="{{ station.name }}" 
+                                                            data-location="{{ station.location }}"
+                                                            data-latitude="{{ station.latitude }}"
+                                                            data-longitude="{{ station.longitude }}">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                    <button class="action-btn small secondary-btn edit-forecast-station" 
+                                                            data-id="{{ station.id }}" 
+                                                            data-name="{{ station.name }}" 
+                                                            data-location="{{ station.location }}"
+                                                            data-latitude="{{ station.latitude }}"
+                                                            data-longitude="{{ station.longitude }}">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <form method="POST" style="display: inline;" class="toggle-forecast-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="toggle_forecast_status">
+                                                        <input type="hidden" name="station_id" value="{{ station.id }}">
+                                                        <button type="submit" class="action-btn small {% if station.status == 'active' %}danger-btn{% else %}success-btn{% endif %} toggle-forecast-status-btn" data-station-id="{{ station.id }}">
+                                                            <i class="fas {% if station.status == 'active' %}fa-toggle-off{% else %}fa-toggle-on{% endif %}"></i>
+                                                            {% if station.status == 'active' %}Disable{% else %}Enable{% endif %}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 40px;">
+                                            <i class="fas fa-info-circle" style="font-size: 24px; color: #9ca3af; margin-bottom: 12px;"></i>
+                                            <p>No forecast locations have been added yet. Click the "Add Forecast Location" button to create your first weather forecast location.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reports-tab" class="tab-pane">
+                    <div class="section-header">
+                        <span>Station Reports</span>
+                    </div>
+                    <div class="section-desc">Generate comprehensive reports for water level and weather stations</div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 24px;">
+                        <!-- Water Level Stations Report Card -->
+                        <div class="report-card">
+                            <div class="report-card-header">
+                                <i class="fas fa-water"></i>
+                                <h3>Water Level Stations Report</h3>
+                            </div>
+                            <div class="report-card-body">
+                                <form method="POST" action="{% url 'generate_report' %}" class="report-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="report_type" value="water_level">
+                                    
+                                    <div class="form-group">
+                                        <label>Select Station:</label>
+                                        <select name="station_id" class="form-select station-select" required>
+                                            <option value="all">All Active Water Stations</option>
+                                            {% for station in stations %}
+                                                {% if station.status == 'active' %}
+                                                <option value="{{ station.id }}">{{ station.name }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <div class="station-validation-message" style="color: #DC2626; font-size: 0.8rem; margin-top: 5px; display: none;">
+                                            Please select a specific station for Chart Report
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Date Range:</label>
+                                        <div class="date-range-inputs">
+                                            <input type="date" name="date_from" required>
+                                            <span>to</span>
+                                            <input type="date" name="date_to" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Report Format:</label>
+                                        <select name="format" class="form-select report-format" required>
+                                            <option value="pdf">PDF Document</option>
+                                            <option value="excel">Excel Spreadsheet</option>
+                                            <option value="chart">Chart Report</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Include Data:</label>
+                                        <div class="checkbox-group">
+                                            <label>
+                                                <input type="checkbox" name="include_readings" value="1" checked>
+                                                Water Level Readings
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_alerts" value="1" checked>
+                                                Alert History
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_thresholds" value="1" checked>
+                                                Threshold Settings
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_charts" value="1" checked>
+                                                Visual Charts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="action-btn primary-btn">
+                                        <i class="fas fa-file-download"></i> <span class="report-btn-text">Generate Report</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Weather Stations Report Card -->
+                        <div class="report-card">
+                            <div class="report-card-header">
+                                <i class="fas fa-cloud-sun"></i>
+                                <h3>Weather Stations Report</h3>
+                            </div>
+                            <div class="report-card-body">
+                                <form method="POST" action="{% url 'generate_report' %}" class="report-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="report_type" value="weather">
+                                    
+                                    <div class="form-group">
+                                        <label>Select Station:</label>
+                                        <select name="weather_station_id" class="form-select" required>
+                                            <option value="all">All Active Weather Stations</option>
+                                            {% for station in weather_stations %}
+                                                {% if station.status == 'active' %}
+                                                <option value="{{ station.id }}">{{ station.name }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Date Range:</label>
+                                        <div class="date-range-inputs">
+                                            <input type="date" name="date_from" required>
+                                            <span>to</span>
+                                            <input type="date" name="date_to" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Report Format:</label>
+                                        <select name="format" class="form-select" required>
+                                            <option value="pdf">PDF Document</option>
+                                            <option value="excel">Excel Spreadsheet</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Include Data:</label>
+                                        <div class="checkbox-group">
+                                            <label>
+                                                <input type="checkbox" name="include_temperature" value="1" checked>
+                                                Temperature
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_humidity" value="1" checked>
+                                                Humidity
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_wind" value="1" checked>
+                                                Wind Data
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_precipitation" value="1" checked>
+                                                Precipitation
+                                            </label>
+                                            <label>
+                                                <input type="checkbox" name="include_charts" value="1" checked>
+                                                Visual Charts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="action-btn primary-btn">
+                                        <i class="fas fa-file-download"></i> <span class="report-btn-text">Generate Report</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Station Modal -->
+    <div id="add-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Add Water Level Station</div>
+            <div class="section-desc">Enter the details for your new monitoring station</div>
+
+            <form method="POST" id="add-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_station">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="station-name">Station Name:</label>
+                        <input type="text" id="station-name" name="name" required placeholder="Enter station name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="station-id">Station ID:</label>
+                        <input type="text" id="station-id" name="station_id" required placeholder="Enter unique identifier">
+                    </div>
+                </div>
+                
+                <!-- Location Settings section in the modal -->
+                <div class="section-header subsection">Location Settings</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="station-latitude">Latitude:</label>
+                        <input type="number" id="station-latitude" name="latitude" step="0.0000001" placeholder="e.g., 10.3157">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="station-longitude">Longitude:</label>
+                        <input type="number" id="station-longitude" name="longitude" step="0.0000001" placeholder="e.g., 123.8854">
+                    </div>
+                </div>
+                
+                <!-- Threshold Settings section in the modal -->
+                <div class="section-header subsection">Threshold Settings</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="green-max">Green Max (cm):</label>
+                        <input type="number" id="green-max" name="green_threshold" min="0" step="0.01" required placeholder="e.g., 90">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="yellow-max">Yellow Max (cm):</label>
+                        <input type="number" id="yellow-max" name="yellow_threshold" min="0" step="0.01" required placeholder="e.g., 120">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orange-max">Orange Max (cm):</label>
+                        <input type="number" id="orange-max" name="orange_threshold" min="0" step="0.01" required placeholder="e.g., 170">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="red-max">Red Max (cm):</label>
+                        <input type="number" id="red-max" name="red_threshold" min="0" step="0.01" required placeholder="e.g., 200">
+                    </div>
+                </div>
+
+                <!-- Modbus Configuration section -->
+                <div class="section-header subsection">Modbus Configuration</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="modbus-ip">IP Address:</label>
+                        <input type="text" id="modbus-ip" name="modbus-ip" value="192.168.41.11" required placeholder="e.g., 192.168.41.11">
+                    </div>
+                    <div class="form-group">
+                        <label for="modbus-port">Port:</label>
+                        <input type="number" id="modbus-port" name="modbus-port" value="100" required placeholder="e.g., 100">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit-id">Unit ID:</label>
+                        <input type="number" id="unit-id" name="unit-id" value="1" required placeholder="e.g., 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-address">Register Address:</label>
+                        <input type="number" id="register-address" name="register-address" value="6" required placeholder="e.g., 6">
+                    </div>
+                </div>
+
+                <div id="station-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="submit" id="submit-station" class="action-btn primary-btn add-button" style="width: 100%;">
+                    <i class="fas fa-plus"></i> Add Station
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Station Modal -->
+    <div id="view-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Station Details</div>
+            <div class="section-desc">View water level monitoring station information</div>
+
+            <div class="detail-container" style="margin-bottom: 24px;">
+                <div class="form-section">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Station Name:</div>
+                        <div id="view-name" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Station ID:</div>
+                        <div id="view-station-id" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <!-- Location Settings section -->
+                <div class="section-header subsection">Location Coordinates</div>
+                <div class="thresholds">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Latitude:</div>
+                        <div id="view-latitude" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Longitude:</div>
+                        <div id="view-longitude" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <div class="section-header subsection">Threshold Settings</div>
+                <div class="thresholds">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Green Max:</div>
+                        <div id="view-green" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Yellow Max:</div>
+                        <div id="view-yellow" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Orange Max:</div>
+                        <div id="view-orange" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Red Max:</div>
+                        <div id="view-red" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <div class="section-header subsection">Modbus Configuration</div>
+                <div class="thresholds">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">IP Address:</div>
+                        <div id="view-ip" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Port:</div>
+                        <div id="view-port" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Unit ID:</div>
+                        <div id="view-unit" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Register Address:</div>
+                        <div id="view-register" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <button id="close-view" class="action-btn primary-btn" style="width: 100%; margin-top: 16px;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Station Modal -->
+    <div id="edit-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Edit Station</div>
+            <div class="section-desc">Update water level monitoring station details</div>
+
+            <form method="POST" id="edit-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_station">
+                <input type="hidden" name="station_id" id="edit-id">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="edit-name">Station Name:</label>
+                        <input type="text" id="edit-name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-station-id">Station ID:</label>
+                        <input type="text" id="edit-station-id" name="station_identifier" required>
+                    </div>
+                </div>
+                
+                <!-- Location Settings section in the modal -->
+                <div class="section-header subsection">Location Settings</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="edit-latitude">Latitude:</label>
+                        <input type="number" id="edit-latitude" name="latitude" step="0.0000001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-longitude">Longitude:</label>
+                        <input type="number" id="edit-longitude" name="longitude" step="0.0000001">
+                    </div>
+                </div>
+                
+                <!-- Threshold Settings section in the modal -->
+                <div class="section-header subsection">Threshold Settings</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="edit-green">Green Max (cm):</label>
+                        <input type="number" id="edit-green" name="green_threshold" min="0" step="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-yellow">Yellow Max (cm):</label>
+                        <input type="number" id="edit-yellow" name="yellow_threshold" min="0" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-orange">Orange Max (cm):</label>
+                        <input type="number" id="edit-orange" name="orange_threshold" min="0" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-red">Red Max (cm):</label>
+                        <input type="number" id="edit-red" name="red_threshold" min="0" step="0.01" required>
+                    </div>
+                </div>
+
+                <!-- Modbus Configuration section -->
+                <div class="section-header subsection">Modbus Configuration</div>
+                <div class="thresholds">
+                    <div class="form-group">
+                        <label for="edit-ip">IP Address:</label>
+                        <input type="text" id="edit-ip" name="modbus-ip" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-port">Port:</label>
+                        <input type="number" id="edit-port" name="modbus-port" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-unit">Unit ID:</label>
+                        <input type="number" id="edit-unit" name="unit-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-register">Register Address:</label>
+                        <input type="number" id="edit-register" name="register-address" required>
+                    </div>
+                </div>
+
+                <div id="edit-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="button" id="preview-edit-btn" class="action-btn primary-btn" style="width: 100%;">
+                    <i class="fas fa-eye"></i> Preview Changes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal Template -->
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header" id="confirmation-title">Confirm Action</div>
+            <div class="section-desc" id="confirmation-message">Are you sure you want to proceed with this action?</div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                <button id="cancel-action" class="action-btn secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-action" class="action-btn primary-btn">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Confirmation Modal -->
+    <div id="edit-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #024CAA;">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-edit" style="font-size: 48px; color: #024CAA; margin-bottom: 16px;"></i>
+                <div class="section-header">Confirm Changes</div>
+                <div class="section-desc">Are you sure you want to save changes to this station?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <div style="font-weight: 600; color: #444;">Station Name:</div>
+                    <div id="confirm-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Station ID:</div>
+                    <div id="confirm-station-id" style="color: #333;"></div>
+                </div>
+                
+                <div style="font-weight: 600; color: #444; margin-top: 8px;">Thresholds:</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px;">
+                    <div style="text-align: center; padding: 8px 4px; background: rgba(16, 185, 129, 0.1); border-radius: 4px;">
+                        <div style="font-weight: 500; font-size: 0.8rem; color: #065f46;">Green</div>
+                        <div id="confirm-green" style="color: #065f46;"></div>
+                    </div>
+                    <div style="text-align: center; padding: 8px 4px; background: rgba(251, 191, 36, 0.1); border-radius: 4px;">
+                        <div style="font-weight: 500; font-size: 0.8rem; color: #92400e;">Yellow</div>
+                        <div id="confirm-yellow" style="color: #92400e;"></div>
+                    </div>
+                    <div style="text-align: center; padding: 8px 4px; background: rgba(251, 146, 60, 0.1); border-radius: 4px;">
+                        <div style="font-weight: 500; font-size: 0.8rem; color: #9a3412;">Orange</div>
+                        <div id="confirm-orange" style="color: #9a3412;"></div>
+                    </div>
+                    <div style="text-align: center; padding: 8px 4px; background: rgba(220, 38, 38, 0.1); border-radius: 4px;">
+                        <div style="font-weight: 500; font-size: 0.8rem; color: #b91c1c;">Red</div>
+                        <div id="confirm-red" style="color: #b91c1c;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-edit" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-edit" class="action-btn primary-btn" style="width: 48%;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Status Confirmation Modal -->
+    <div id="toggle-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 420px; border-top: 5px solid #b91c1c;" id="toggle-modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-toggle-off" style="font-size: 48px; color: #b91c1c; margin-bottom: 16px;" id="toggle-icon"></i>
+                <div class="section-header" id="toggle-title">Disable Station</div>
+                <div class="section-desc" id="toggle-message">Are you sure you want to disable this station?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Station:</div>
+                    <div id="toggle-station-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Station ID:</div>
+                    <div id="toggle-station-id" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Current Status:</div>
+                    <div id="toggle-current-status" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">New Status:</div>
+                    <div id="toggle-new-status" style="color: #333;">
+                        <span class="status-badge" id="toggle-new-status-badge">Inactive</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-toggle" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-toggle" class="action-btn" style="width: 48%;" id="toggle-confirm-button">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Weather Station Modal -->
+    <div id="add-weather-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Add Weather Station</div>
+            <div class="section-desc">Enter the details for your new weather monitoring station</div>
+
+            <form method="POST" id="add-weather-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_weather_station">
+                <input type="hidden" name="active_tab" value="weather-tab">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="weather-station-name">Station Name:</label>
+                        <input type="text" id="weather-station-name" name="name" required placeholder="Enter station name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="weather-station-id">Station ID:</label>
+                        <input type="text" id="weather-station-id" name="station_id" required placeholder="Enter unique identifier">
+                    </div>
+                    
+                    <!-- Location Settings section -->
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label for="weather-station-latitude">Latitude:</label>
+                        <input type="number" id="weather-station-latitude" name="latitude" step="0.0000001" placeholder="e.g., 10.3157">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="weather-station-longitude">Longitude:</label>
+                        <input type="number" id="weather-station-longitude" name="longitude" step="0.0000001" placeholder="e.g., 123.8854">
+                    </div>
+                </div>
+
+                <div id="weather-station-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="submit" id="submit-weather-station" class="action-btn primary-btn add-button" style="width: 100%;">
+                    <i class="fas fa-plus"></i> Add Weather Station
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Weather Station Modal -->
+    <div id="view-weather-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Weather Station Details</div>
+            <div class="section-desc">View weather monitoring station information</div>
+
+            <div class="detail-container" style="margin-bottom: 24px;">
+                <div class="form-section">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Station Name:</div>
+                        <div id="view-weather-name" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Station ID:</div>
+                        <div id="view-weather-station-id" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Location:</div>
+                        <div id="view-weather-location" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Date Added:</div>
+                        <div id="view-weather-date" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <button id="close-weather-view" class="action-btn primary-btn" style="width: 100%; margin-top: 16px;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Weather Station Modal -->
+    <div id="edit-weather-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Edit Weather Station</div>
+            <div class="section-desc">Update weather monitoring station details</div>
+
+            <form method="POST" id="edit-weather-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_weather_station">
+                <input type="hidden" name="active_tab" value="weather-tab">
+                <input type="hidden" name="station_id" id="edit-weather-id">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="edit-weather-name">Station Name:</label>
+                        <input type="text" id="edit-weather-name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-weather-station-id">Station ID:</label>
+                        <input type="text" id="edit-weather-station-id" name="station_identifier" required>
+                    </div>
+                    
+                    <!-- Location Settings section -->
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label for="edit-weather-latitude">Latitude:</label>
+                        <input type="number" id="edit-weather-latitude" name="latitude" step="0.0000001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-weather-longitude">Longitude:</label>
+                        <input type="number" id="edit-weather-longitude" name="longitude" step="0.0000001">
+                    </div>
+                </div>
+
+                <div id="edit-weather-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="button" id="preview-edit-weather-btn" class="action-btn primary-btn" style="width: 100%;">
+                    <i class="fas fa-eye"></i> Preview Changes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Weather Station Confirmation Modal -->
+    <div id="edit-weather-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #024CAA;">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-edit" style="font-size: 48px; color: #024CAA; margin-bottom: 16px;"></i>
+                <div class="section-header">Confirm Weather Station Changes</div>
+                <div class="section-desc">Are you sure you want to save changes to this weather station?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Name:</div>
+                    <div id="confirm-weather-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Station ID:</div>
+                    <div id="confirm-weather-station-id" style="color: #333;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-edit-weather" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-edit-weather" class="action-btn primary-btn" style="width: 48%;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Weather Station Confirmation Modal -->
+    <div id="delete-weather-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #dc2626;">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-trash" style="font-size: 48px; color: #dc2626; margin-bottom: 16px;"></i>
+                <div class="section-header">Delete Weather Station</div>
+                <div class="section-desc">Are you sure you want to delete this weather station?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Station:</div>
+                    <div id="delete-weather-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Station ID:</div>
+                    <div id="delete-weather-station-id" style="color: #333;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-delete-weather" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-delete-weather" class="action-btn danger-btn" style="width: 48%;">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Weather Station Status Confirmation Modal -->
+    <div id="toggle-weather-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #b91c1c;" id="toggle-weather-modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-toggle-off" style="font-size: 48px; color: #b91c1c; margin-bottom: 16px;" id="toggle-weather-icon"></i>
+                <div class="section-header" id="toggle-weather-title">Disable Weather Station</div>
+                <div class="section-desc" id="toggle-weather-message">Are you sure you want to disable this weather station?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Station:</div>
+                    <div id="toggle-weather-station-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Station ID:</div>
+                    <div id="toggle-weather-station-id" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Current Status:</div>
+                    <div id="toggle-weather-current-status" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">New Status:</div>
+                    <div id="toggle-weather-new-status" style="color: #333;">
+                        <span class="status-badge" id="toggle-weather-new-status-badge">Inactive</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-toggle-weather" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-toggle-weather" class="action-btn danger-btn" style="width: 48%;">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Forecast Station Modal -->
+    <div id="add-forecast-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Add Weather Forecast Location</div>
+            <div class="section-desc">Enter the details for your new weather forecast location</div>
+
+            <form method="POST" id="add-forecast-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_forecast_station">
+                <input type="hidden" name="active_tab" value="forecast-tab">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="forecast-station-name">Location Name:</label>
+                        <input type="text" id="forecast-station-name" name="name" required placeholder="Enter location name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="forecast-location">Location Description:</label>
+                        <input type="text" id="forecast-location" name="location" required placeholder="Enter location description (e.g., City, State)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="forecast-latitude">Latitude:</label>
+                        <input type="text" id="forecast-latitude" name="latitude" required placeholder="Enter latitude (e.g., 10.3157)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="forecast-longitude">Longitude:</label>
+                        <input type="text" id="forecast-longitude" name="longitude" required placeholder="Enter longitude (e.g., 123.8854)">
+                    </div>
+                </div>
+
+                <div id="forecast-station-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="submit" id="submit-forecast-station" class="action-btn primary-btn add-button" style="width: 100%;">
+                    <i class="fas fa-plus"></i> Add Forecast Location
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Forecast Station Modal -->
+    <div id="view-forecast-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Forecast Location Details</div>
+            <div class="section-desc">View weather forecast location information</div>
+
+            <div class="detail-container" style="margin-bottom: 24px;">
+                <div class="form-section">
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Location Name:</div>
+                        <div id="view-forecast-name" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Location:</div>
+                        <div id="view-forecast-location" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Coordinates:</div>
+                        <div id="view-forecast-coordinates" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div class="detail-group" style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; color: #444; font-size: 0.85rem; margin-bottom: 6px;">Date Added:</div>
+                        <div id="view-forecast-date" style="padding: 10px; background: #f7f8fa; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <button id="close-forecast-view" class="action-btn primary-btn" style="width: 100%; margin-top: 16px;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Forecast Station Modal -->
+    <div id="edit-forecast-station-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div class="section-header">Edit Forecast Location</div>
+            <div class="section-desc">Update weather forecast location details</div>
+
+            <form method="POST" id="edit-forecast-station-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_forecast_station">
+                <input type="hidden" name="active_tab" value="forecast-tab">
+                <input type="hidden" name="station_id" id="edit-forecast-id">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="edit-forecast-name">Location Name:</label>
+                        <input type="text" id="edit-forecast-name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-forecast-location">Location:</label>
+                        <input type="text" id="edit-forecast-location" name="location" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-forecast-latitude">Latitude:</label>
+                        <input type="text" id="edit-forecast-latitude" name="latitude" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-forecast-longitude">Longitude:</label>
+                        <input type="text" id="edit-forecast-longitude" name="longitude" required>
+                    </div>
+                </div>
+
+                <div id="edit-forecast-status-message" style="margin: 16px 0; text-align: center; min-height: 20px; font-size: 0.9rem; color: #dc2626;"></div>
+
+                <button type="button" id="preview-edit-forecast-btn" class="action-btn primary-btn" style="width: 100%;">
+                    <i class="fas fa-eye"></i> Preview Changes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Forecast Station Confirmation Modal -->
+    <div id="edit-forecast-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #024CAA;">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-edit" style="font-size: 48px; color: #024CAA; margin-bottom: 16px;"></i>
+                <div class="section-header">Confirm Forecast Location Changes</div>
+                <div class="section-desc">Are you sure you want to save changes to this forecast location?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Name:</div>
+                    <div id="confirm-forecast-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Location:</div>
+                    <div id="confirm-forecast-location" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Coordinates:</div>
+                    <div id="confirm-forecast-coordinates" style="color: #333;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-edit-forecast" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-edit-forecast" class="action-btn primary-btn" style="width: 48%;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Forecast Station Status Confirmation Modal -->
+    <div id="toggle-forecast-confirmation-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; border-top: 5px solid #b91c1c;" id="toggle-forecast-modal-content">
+            <span class="close-modal"><i class="fas fa-times"></i></span>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <i class="fas fa-toggle-off" style="font-size: 48px; color: #b91c1c; margin-bottom: 16px;" id="toggle-forecast-icon"></i>
+                <div class="section-header" id="toggle-forecast-title">Disable Forecast Location</div>
+                <div class="section-desc" id="toggle-forecast-message">Are you sure you want to disable this forecast location?</div>
+            </div>
+            
+            <div class="form-summary" style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 8px 0 24px 0; border: 1px solid #eaeaea;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;">
+                    <div style="font-weight: 600; color: #444;">Location:</div>
+                    <div id="toggle-forecast-name" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Coordinates:</div>
+                    <div id="toggle-forecast-coordinates" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">Current Status:</div>
+                    <div id="toggle-forecast-current-status" style="color: #333;"></div>
+                    <div style="font-weight: 600; color: #444;">New Status:</div>
+                    <div id="toggle-forecast-new-status" style="color: #333;">
+                        <span class="status-badge" id="toggle-forecast-new-status-badge">Inactive</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <button id="cancel-toggle-forecast" class="action-btn secondary-btn" style="width: 48%;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="confirm-toggle-forecast" class="action-btn danger-btn" style="width: 48%;">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add JavaScript for modal functionality -->
+    <script>
+        $(document).ready(function() {
+            // Set current date
+            const currentDate = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            $("#currentDate").text(currentDate.toLocaleDateString('en-US', dateOptions));
+            
+            // Handle sidebar toggle for settings page responsiveness
+            $('.sidebar-toggle-btn').click(function() {
+                $('.main').toggleClass('sidebar-hidden');
+                $('.header-container').toggleClass('sidebar-hidden');
+                $('.card-container').toggleClass('sidebar-hidden');
+                
+                // Adjust the table container layout after transition
+                setTimeout(function() {
+                    $('.table-container').each(function() {
+                        // Force a reflow of the table layout
+                        $(this).css('display', 'none');
+                        this.offsetHeight; // Force reflow
+                        $(this).css('display', 'block');
+                    });
+                }, 400); // Wait for transition to complete
+            });
+            
+            // Initialize the active tab based on server-side value
+            var activeTab = "{{ active_tab|default:'' }}";
+            if (activeTab) {
+                // Switch to the correct tab
+                $(".tab-button").removeClass("active");
+                $(".tab-pane").removeClass("active");
+                
+                // Add active class to specified tab
+                $('[data-tab="' + activeTab + '"]').addClass("active");
+                $("#" + activeTab).addClass("active");
+            }
+            
+            // Flash message handling
+            $(".flash-message").each(function() {
+                // Add a close button to each flash message
+                const $message = $(this);
+                const $closeBtn = $('<button class="flash-close"><i class="fas fa-times"></i></button>');
+                $message.append($closeBtn);
+                
+                // Style the close button
+                $closeBtn.css({
+                    background: 'none',
+                    border: 'none',
+                    color: 'inherit',
+                    opacity: '0.7',
+                    cursor: 'pointer',
+                    padding: '0',
+                    marginLeft: 'auto',
+                    fontSize: '16px'
+                });
+                
+                // Handle close button click
+                $closeBtn.click(function() {
+                    $message.fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                });
+                
+                // Auto-remove after animation completes
+                setTimeout(() => {
+                    $message.fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                }, 5000);
+            });
+            
+            // Open modal when Add Station button is clicked
+            $("#add-station-btn").click(function() {
+                $("#add-station-modal").css("display", "block");
+                // Trigger animation after display is set
+                setTimeout(() => {
+                    $("#add-station-modal").addClass("show");
+                }, 10);
+            });
+
+            // Close modal when X is clicked
+            $(".close-modal").click(function() {
+                $(this).closest(".modal").removeClass("show");
+                // Remove from DOM after animation completes
+                setTimeout(() => {
+                    $(this).closest(".modal").css("display", "none");
+                }, 300);
+            });
+
+            // Close modal when clicking outside of it
+            $(window).click(function(event) {
+                if ($(event.target).hasClass("modal")) {
+                    $(event.target).removeClass("show");
+                    // Remove from DOM after animation completes
+                    setTimeout(() => {
+                        $(event.target).css("display", "none");
+                    }, 300);
+                }
+            });
+            
+            // Close view modal when clicking close button
+            $("#close-view").click(function() {
+                $("#view-station-modal").removeClass("show");
+                setTimeout(() => {
+                    $("#view-station-modal").css("display", "none");
+                }, 300);
+            });
+            
+            // Hide flash messages after animation completes
+            setTimeout(() => {
+                $(".flash-message").fadeOut(500);
+            }, 5000);
+            
+            // Function to show a modal with animation
+            function showModal(modalId) {
+                $(`#${modalId}`).css("display", "block");
+                setTimeout(() => {
+                    $(`#${modalId}`).addClass("show");
+                }, 10);
+            }
+            
+            // Function to hide a modal with animation
+            function hideModal(modalId) {
+                $(`#${modalId}`).removeClass("show");
+                setTimeout(() => {
+                    $(`#${modalId}`).css("display", "none");
+                }, 300);
+            }
+            
+            // Global variables to store current action data
+            let currentToggleForm = null;
+            let currentEditForm = null;
+            
+            // Handle View Station button
+            $(".view-station").click(function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const stationId = $(this).data("station-id");
+                const green = $(this).data("green");
+                const yellow = $(this).data("yellow");
+                const orange = $(this).data("orange");
+                const red = $(this).data("red");
+                const ip = $(this).data("ip");
+                const port = $(this).data("port");
+                const unit = $(this).data("unit");
+                const register = $(this).data("register");
+                const latitude = $(this).data("latitude") || "Not set";
+                const longitude = $(this).data("longitude") || "Not set";
+                
+                console.log("View station clicked:", id, name, stationId);
+                
+                // Set values in view modal
+                $("#view-name").text(name);
+                $("#view-station-id").text(stationId);
+                $("#view-latitude").text(latitude);
+                $("#view-longitude").text(longitude);
+                $("#view-green").text(green + " cm");
+                $("#view-yellow").text(yellow + " cm");
+                $("#view-orange").text(orange + " cm");
+                $("#view-red").text(red + " cm");
+                $("#view-ip").text(ip);
+                $("#view-port").text(port);
+                $("#view-unit").text(unit);
+                $("#view-register").text(register);
+                
+                // Store the station ID in the modal for reference
+                $("#view-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("view-station-modal");
+            });
+            
+            // Handle Edit Station button
+            $(".edit-station").click(function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const stationId = $(this).data("station-id");
+                const green = $(this).data("green");
+                const yellow = $(this).data("yellow");
+                const orange = $(this).data("orange");
+                const red = $(this).data("red");
+                const ip = $(this).data("ip");
+                const port = $(this).data("port");
+                const unit = $(this).data("unit");
+                const register = $(this).data("register");
+                const latitude = $(this).data("latitude");
+                const longitude = $(this).data("longitude");
+                
+                console.log("Edit station clicked:", id, name, stationId);
+                
+                // Validate that we have all the necessary data
+                if (!id || !name || !stationId) {
+                    console.error("Missing required data for station:", id, name, stationId);
+                    return;
+                }
+                
+                // Set values in edit form
+                $("#edit-id").val(id);
+                $("#edit-name").val(name);
+                $("#edit-station-id").val(stationId);
+                $("#edit-latitude").val(latitude);
+                $("#edit-longitude").val(longitude);
+                $("#edit-green").val(green);
+                $("#edit-yellow").val(yellow);
+                $("#edit-orange").val(orange);
+                $("#edit-red").val(red);
+                $("#edit-ip").val(ip);
+                $("#edit-port").val(port);
+                $("#edit-unit").val(unit);
+                $("#edit-register").val(register);
+                
+                // Store the station ID in the modal for reference
+                $("#edit-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("edit-station-modal");
+            });
+            
+            // Handle toggle status buttons
+            $(".toggle-status-btn").click(function(e) {
+                // Prevent default form submission
+                e.preventDefault();
+                
+                // Get the station ID from data attribute
+                const stationId = $(this).data("station-id");
+                const isActive = $(this).find("i").hasClass("fa-toggle-off");
+                const stationName = $(this).closest("tr").find("td:first-child").text();
+                const stationIdentifier = $(this).closest("tr").find("td:nth-child(2)").text();
+                const currentStatus = isActive ? "Active" : "Inactive";
+                const newStatus = isActive ? "Inactive" : "Active";
+                
+                console.log("Toggle clicked for station:", stationId, stationName, "Current status:", currentStatus);
+                
+                // Store the form for later submission
+                currentToggleForm = $(this).closest("form");
+                
+                // Update toggle confirmation modal content
+                $("#toggle-station-name").text(stationName);
+                $("#toggle-station-id").text(stationIdentifier);
+                $("#toggle-current-status").html(`<span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${currentStatus}</span>`);
+                
+                if (isActive) {
+                    // Disabling
+                    $("#toggle-modal-content").css("border-top-color", "#b91c1c");
+                    $("#toggle-icon").removeClass("fa-toggle-on").addClass("fa-toggle-off").css("color", "#b91c1c");
+                    $("#toggle-title").text("Disable Station");
+                    $("#toggle-message").text("Are you sure you want to disable this station?");
+                    $("#toggle-new-status-badge").removeClass("status-active").addClass("status-inactive").text("Inactive");
+                    $("#confirm-toggle").removeClass("success-btn").addClass("danger-btn");
+                } else {
+                    // Enabling
+                    $("#toggle-modal-content").css("border-top-color", "#10b981");
+                    $("#toggle-icon").removeClass("fa-toggle-off").addClass("fa-toggle-on").css("color", "#10b981");
+                    $("#toggle-title").text("Enable Station");
+                    $("#toggle-message").text("Are you sure you want to enable this station?");
+                    $("#toggle-new-status-badge").removeClass("status-inactive").addClass("status-active").text("Active");
+                    $("#confirm-toggle").removeClass("danger-btn").addClass("success-btn");
+                }
+                
+                // Show the confirmation modal
+                showModal("toggle-confirmation-modal");
+            });
+            
+            // Handle cancel toggle
+            $("#cancel-toggle").click(function() {
+                hideModal("toggle-confirmation-modal");
+                currentToggleForm = null;
+            });
+            
+            // Handle confirm toggle
+            $("#confirm-toggle").click(function() {
+                if (currentToggleForm) {
+                    currentToggleForm.submit();
+                }
+                hideModal("toggle-confirmation-modal");
+            });
+            
+            // Add submit handler for edit form
+            $("#edit-station-form").submit(function(e) {
+                e.preventDefault();
+                
+                // Log form data before submission
+                const stationId = $("#edit-id").val();
+                const name = $("#edit-name").val();
+                const identifier = $("#edit-station-id").val();
+                const green = $("#edit-green").val();
+                const yellow = $("#edit-yellow").val();
+                const orange = $("#edit-orange").val();
+                const red = $("#edit-red").val();
+                
+                console.log("Edit form submitted for station:", stationId);
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    console.error("Missing station ID in edit form!");
+                    $("#edit-status-message").text("Error: Missing station ID. Please try again.");
+                    return false;
+                }
+                
+                // Store form for later submission
+                currentEditForm = $(this);
+                
+                // Submit the form
+                this.submit();
+                
+                return false;
+            });
+            
+            // Handle Preview Changes button for water level stations
+            $("#preview-edit-btn").click(function() {
+                // Get form data
+                const stationId = $("#edit-id").val();
+                const name = $("#edit-name").val();
+                const identifier = $("#edit-station-id").val();
+                const green = $("#edit-green").val();
+                const yellow = $("#edit-yellow").val();
+                const orange = $("#edit-orange").val();
+                const red = $("#edit-red").val();
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    console.error("Missing station ID in edit form!");
+                    $("#edit-status-message").text("Error: Missing station ID. Please try again.");
+                    return;
+                }
+                
+                // Update confirmation modal with form values
+                $("#confirm-name").text(name);
+                $("#confirm-station-id").text(identifier);
+                $("#confirm-green").text(green + " cm");
+                $("#confirm-yellow").text(yellow + " cm");
+                $("#confirm-orange").text(orange + " cm");
+                $("#confirm-red").text(red + " cm");
+                
+                // Store form for later submission
+                currentEditForm = $("#edit-station-form");
+                
+                // Hide edit modal and show confirmation modal
+                hideModal("edit-station-modal");
+                setTimeout(() => {
+                    showModal("edit-confirmation-modal");
+                }, 300);
+            });
+            
+            // Handle cancel edit
+            $("#cancel-edit").click(function() {
+                hideModal("edit-confirmation-modal");
+                setTimeout(() => {
+                    showModal("edit-station-modal");
+                }, 300);
+            });
+            
+            // Handle confirm edit
+            $("#confirm-edit").click(function() {
+                if (currentEditForm) {
+                    currentEditForm.off("submit").submit();
+                }
+                hideModal("edit-confirmation-modal");
+            });
+            
+            // Enable tooltips for threshold info
+            $('[title]').hover(
+                function() {
+                    let tooltip = $('<div class="tooltip"></div>');
+                    tooltip.html($(this).attr('title').replace(/\n/g, '<br>'));
+                    tooltip.css({
+                        position: 'absolute',
+                        top: $(this).offset().top + 25,
+                        left: $(this).offset().left,
+                        background: '#333',
+                        color: 'white',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        zIndex: 100,
+                        maxWidth: '300px'
+                    });
+                    $('body').append(tooltip);
+                },
+                function() {
+                    $('.tooltip').remove();
+                }
+            );
+            
+            // Close button for all modals
+            $(".close-modal, #cancel-action").click(function() {
+                $(this).closest(".modal").removeClass("show");
+                setTimeout(() => {
+                    $(this).closest(".modal").css("display", "none");
+                }, 300);
+            });
+            
+            // Date and time functionality removed as requested
+            
+            // Tab switching functionality
+            $(".tab-button").click(function() {
+                // Remove active class from all tabs
+                $(".tab-button").removeClass("active");
+                $(".tab-pane").removeClass("active");
+                
+                // Add active class to clicked tab
+                $(this).addClass("active");
+                
+                // Show corresponding tab content
+                const tabId = $(this).data("tab");
+                $("#" + tabId).addClass("active");
+                
+                // Add tab name to URL as query parameter
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', tabId);
+                history.replaceState(null, '', url);
+            });
+            
+            // Check for tab parameter in URL or use saved tab
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            if (tabParam) {
+                // If tab parameter exists in URL, activate that tab
+                $(".tab-button").removeClass("active");
+                $(".tab-pane").removeClass("active");
+                
+                // Activate the tab from URL parameter
+                $('[data-tab="' + tabParam + '"]').addClass("active");
+                $("#" + tabParam).addClass("active");
+            } else if (!activeTab) {
+                // Only use saved tab from session storage if we don't have an active_tab from form submission
+                const savedTab = sessionStorage.getItem('activeSettingsTab');
+                if (savedTab) {
+                    $(".tab-button").removeClass("active");
+                    $(".tab-pane").removeClass("active");
+                    
+                    // Activate the saved tab
+                    $('[data-tab="' + savedTab + '"]').addClass("active");
+                    $("#" + savedTab).addClass("active");
+                }
+            }
+            
+            // Remove the session storage check since we're using URL parameters now
+            sessionStorage.removeItem('activeSettingsTab');
+            
+            // Weather Station Modal Handlers
+            $("#add-weather-station-btn").click(function() {
+                $("#add-weather-station-modal").css("display", "block");
+                setTimeout(() => {
+                    $("#add-weather-station-modal").addClass("show");
+                }, 10);
+            });
+            
+            // Close weather view modal
+            $("#close-weather-view").click(function() {
+                $("#view-weather-station-modal").removeClass("show");
+                setTimeout(() => {
+                    $("#view-weather-station-modal").css("display", "none");
+                }, 300);
+            });
+            
+            // Global variables for weather station actions
+            let currentDeleteWeatherForm = null;
+            let currentEditWeatherForm = null;
+            
+            // Handle View Weather Station button
+            $(document).on("click", ".view-weather-station", function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const stationId = $(this).data("station-id");
+                const latitude = $(this).data("latitude") || "Not set";
+                const longitude = $(this).data("longitude") || "Not set";
+                const dateAdded = $(this).closest("tr").find("td:nth-child(4)").text();
+                
+                // Set values in view modal
+                $("#view-weather-name").text(name);
+                $("#view-weather-station-id").text(stationId);
+                $("#view-weather-location").text(`${latitude}, ${longitude}`);
+                $("#view-weather-date").text(dateAdded);
+                
+                // Store the station ID in the modal for reference
+                $("#view-weather-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("view-weather-station-modal");
+            });
+            
+            // Handle Edit Weather Station button
+            $(document).on("click", ".edit-weather-station", function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const stationId = $(this).data("station-id");
+                const latitude = $(this).data("latitude");
+                const longitude = $(this).data("longitude");
+                
+                // Set values in edit form
+                $("#edit-weather-id").val(id);
+                $("#edit-weather-name").val(name);
+                $("#edit-weather-station-id").val(stationId);
+                $("#edit-weather-latitude").val(latitude);
+                $("#edit-weather-longitude").val(longitude);
+                
+                // Store the station ID in the modal for reference
+                $("#edit-weather-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("edit-weather-station-modal");
+            });
+            
+            // Handle delete weather station buttons
+            $(document).on("click", ".delete-weather-btn", function(e) {
+                // Prevent default form submission
+                e.preventDefault();
+                
+                // Get the station ID from data attribute
+                const stationId = $(this).data("station-id");
+                const stationName = $(this).closest("tr").find("td:first-child").text();
+                const stationIdentifier = $(this).closest("tr").find("td:nth-child(2)").text();
+                
+                // Store the form for later submission
+                currentDeleteWeatherForm = $(this).closest("form");
+                
+                // Update delete confirmation modal content
+                $("#delete-weather-name").text(stationName);
+                $("#delete-weather-station-id").text(stationIdentifier);
+                
+                // Show the confirmation modal
+                showModal("delete-weather-confirmation-modal");
+            });
+            
+            // Handle cancel delete weather
+            $("#cancel-delete-weather").click(function() {
+                hideModal("delete-weather-confirmation-modal");
+                currentDeleteWeatherForm = null;
+            });
+            
+            // Handle confirm delete weather
+            $("#confirm-delete-weather").click(function() {
+                if (currentDeleteWeatherForm) {
+                    currentDeleteWeatherForm.submit();
+                }
+                hideModal("delete-weather-confirmation-modal");
+            });
+            
+            // Add submit handler for edit weather station form
+            $("#edit-weather-station-form").submit(function(e) {
+                e.preventDefault();
+                
+                // Get form data
+                const stationId = $("#edit-weather-id").val();
+                const name = $("#edit-weather-name").val();
+                const identifier = $("#edit-weather-station-id").val();
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    $("#edit-weather-status-message").text("Error: Missing station ID. Please try again.");
+                    return false;
+                }
+                
+                // Submit the form
+                this.submit();
+                
+                return false;
+            });
+            
+            // Handle Preview Changes button for weather stations
+            $("#preview-edit-weather-btn").click(function() {
+                // Get form data
+                const stationId = $("#edit-weather-id").val();
+                const name = $("#edit-weather-name").val();
+                const identifier = $("#edit-weather-station-id").val();
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    $("#edit-weather-status-message").text("Error: Missing station ID. Please try again.");
+                    return;
+                }
+                
+                // Update confirmation modal with form values
+                $("#confirm-weather-name").text(name);
+                $("#confirm-weather-station-id").text(identifier);
+                
+                // Hide edit modal and show confirmation modal
+                hideModal("edit-weather-station-modal");
+                setTimeout(() => {
+                    showModal("edit-weather-confirmation-modal");
+                }, 300);
+            });
+            
+            // Handle cancel edit weather
+            $("#cancel-edit-weather").click(function() {
+                hideModal("edit-weather-confirmation-modal");
+                setTimeout(() => {
+                    showModal("edit-weather-station-modal");
+                }, 300);
+            });
+            
+            // Handle confirm edit weather
+            $("#confirm-edit-weather").click(function() {
+                // Submit the edit form
+                $("#edit-weather-station-form").off("submit").submit();
+                hideModal("edit-weather-confirmation-modal");
+            });
+
+            // Handle toggle status buttons for weather stations
+            $(document).on("click", ".toggle-weather-status-btn", function(e) {
+                // Prevent default form submission
+                e.preventDefault();
+                
+                // Get the station ID from data attribute
+                const stationId = $(this).data("station-id");
+                const stationName = $(this).closest("tr").find("td:first-child").text();
+                const stationIdentifier = $(this).closest("tr").find("td:nth-child(2)").text();
+                const isActive = $(this).find("i").hasClass("fa-toggle-off");
+                const currentStatus = isActive ? "Active" : "Inactive";
+                const newStatus = isActive ? "Inactive" : "Active";
+                
+                // Store the form for later submission
+                currentToggleWeatherForm = $(this).closest("form");
+                
+                // Update toggle confirmation modal content
+                $("#toggle-weather-station-name").text(stationName);
+                $("#toggle-weather-station-id").text(stationIdentifier);
+                $("#toggle-weather-current-status").html(`<span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${currentStatus}</span>`);
+                
+                if (isActive) {
+                    // Disabling
+                    $("#toggle-weather-modal-content").css("border-top-color", "#b91c1c");
+                    $("#toggle-weather-icon").removeClass("fa-toggle-on").addClass("fa-toggle-off").css("color", "#b91c1c");
+                    $("#toggle-weather-title").text("Disable Weather Station");
+                    $("#toggle-weather-message").text("Are you sure you want to disable this weather station?");
+                    $("#toggle-weather-new-status-badge").removeClass("status-active").addClass("status-inactive").text("Inactive");
+                    $("#confirm-toggle-weather").removeClass("success-btn").addClass("danger-btn");
+                } else {
+                    // Enabling
+                    $("#toggle-weather-modal-content").css("border-top-color", "#10b981");
+                    $("#toggle-weather-icon").removeClass("fa-toggle-off").addClass("fa-toggle-on").css("color", "#10b981");
+                    $("#toggle-weather-title").text("Enable Weather Station");
+                    $("#toggle-weather-message").text("Are you sure you want to enable this weather station?");
+                    $("#toggle-weather-new-status-badge").removeClass("status-inactive").addClass("status-active").text("Active");
+                    $("#confirm-toggle-weather").removeClass("danger-btn").addClass("success-btn");
+                }
+                
+                // Show the confirmation modal
+                showModal("toggle-weather-confirmation-modal");
+            });
+            
+            // Handle cancel toggle weather
+            $("#cancel-toggle-weather").click(function() {
+                hideModal("toggle-weather-confirmation-modal");
+                currentToggleWeatherForm = null;
+            });
+            
+            // Handle confirm toggle weather
+            $("#confirm-toggle-weather").click(function() {
+                if (currentToggleWeatherForm) {
+                    currentToggleWeatherForm.submit();
+                }
+                hideModal("toggle-weather-confirmation-modal");
+            });
+
+            // Weather Station Modal Handlers
+            $("#add-weather-station-btn").click(function() {
+                $("#add-weather-station-modal").css("display", "block");
+                setTimeout(() => {
+                    $("#add-weather-station-modal").addClass("show");
+                }, 10);
+            });
+            
+            // Forecast Station Modal Handlers
+            $("#add-forecast-station-btn").click(function() {
+                $("#add-forecast-station-modal").css("display", "block");
+                setTimeout(() => {
+                    $("#add-forecast-station-modal").addClass("show");
+                }, 10);
+            });
+            
+            // Close forecast view modal
+            $("#close-forecast-view").click(function() {
+                $("#view-forecast-station-modal").removeClass("show");
+                setTimeout(() => {
+                    $("#view-forecast-station-modal").css("display", "none");
+                }, 300);
+            });
+            
+            // Global variables for forecast station actions
+            let currentToggleForecastForm = null;
+            let currentEditForecastForm = null;
+            
+            // Handle View Forecast Station button
+            $(document).on("click", ".view-forecast-station", function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const location = $(this).data("location");
+                const latitude = $(this).data("latitude");
+                const longitude = $(this).data("longitude");
+                const dateAdded = $(this).closest("tr").find("td:nth-child(5)").text();
+                
+                // Set values in view modal
+                $("#view-forecast-name").text(name);
+                $("#view-forecast-location").text(location);
+                $("#view-forecast-coordinates").text(`${latitude}, ${longitude}`);
+                $("#view-forecast-date").text(dateAdded);
+                
+                // Store the station ID in the modal for reference
+                $("#view-forecast-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("view-forecast-station-modal");
+            });
+            
+            // Handle Edit Forecast Station button
+            $(document).on("click", ".edit-forecast-station", function() {
+                // Get station data from data attributes
+                const id = $(this).data("id");
+                const name = $(this).data("name");
+                const location = $(this).data("location");
+                const latitude = $(this).data("latitude");
+                const longitude = $(this).data("longitude");
+                
+                // Set values in edit form
+                $("#edit-forecast-id").val(id);
+                $("#edit-forecast-name").val(name);
+                $("#edit-forecast-location").val(location);
+                $("#edit-forecast-latitude").val(latitude);
+                $("#edit-forecast-longitude").val(longitude);
+                
+                // Store the station ID in the modal for reference
+                $("#edit-forecast-station-modal").attr("data-current-station", id);
+                
+                // Show modal
+                showModal("edit-forecast-station-modal");
+            });
+            
+            // Add submit handler for edit forecast station form
+            $("#edit-forecast-station-form").submit(function(e) {
+                e.preventDefault();
+                
+                // Get form data
+                const stationId = $("#edit-forecast-id").val();
+                const name = $("#edit-forecast-name").val();
+                const location = $("#edit-forecast-location").val();
+                const latitude = $("#edit-forecast-latitude").val();
+                const longitude = $("#edit-forecast-longitude").val();
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    $("#edit-forecast-status-message").text("Error: Missing station ID. Please try again.");
+                    return false;
+                }
+                
+                // Submit the form
+                this.submit();
+                
+                return false;
+            });
+            
+            // Handle Preview Changes button for forecast stations
+            $("#preview-edit-forecast-btn").click(function() {
+                // Get form data
+                const stationId = $("#edit-forecast-id").val();
+                const name = $("#edit-forecast-name").val();
+                const location = $("#edit-forecast-location").val();
+                const latitude = $("#edit-forecast-latitude").val();
+                const longitude = $("#edit-forecast-longitude").val();
+                
+                // Verify that we have the station ID
+                if (!stationId) {
+                    $("#edit-forecast-status-message").text("Error: Missing station ID. Please try again.");
+                    return;
+                }
+                
+                // Update confirmation modal with form values
+                $("#confirm-forecast-name").text(name);
+                $("#confirm-forecast-location").text(location);
+                $("#confirm-forecast-coordinates").text(`${latitude}, ${longitude}`);
+                
+                // Hide edit modal and show confirmation modal
+                hideModal("edit-forecast-station-modal");
+                setTimeout(() => {
+                    showModal("edit-forecast-confirmation-modal");
+                }, 300);
+            });
+            
+            // Handle cancel edit forecast
+            $("#cancel-edit-forecast").click(function() {
+                hideModal("edit-forecast-confirmation-modal");
+                setTimeout(() => {
+                    showModal("edit-forecast-station-modal");
+                }, 300);
+            });
+            
+            // Handle confirm edit forecast
+            $("#confirm-edit-forecast").click(function() {
+                // Submit the edit form
+                $("#edit-forecast-station-form").off("submit").submit();
+                hideModal("edit-forecast-confirmation-modal");
+            });
+
+            // Handle toggle status buttons for forecast stations
+            $(document).on("click", ".toggle-forecast-status-btn", function(e) {
+                // Prevent default form submission
+                e.preventDefault();
+                
+                // Get the station ID from data attribute
+                const stationId = $(this).data("station-id");
+                const stationName = $(this).closest("tr").find("td:first-child").text();
+                const coordinates = $(this).closest("tr").find("td:nth-child(3)").text();
+                const isActive = $(this).find("i").hasClass("fa-toggle-off");
+                const currentStatus = isActive ? "Active" : "Inactive";
+                const newStatus = isActive ? "Inactive" : "Active";
+                
+                // Store the form for later submission
+                currentToggleForecastForm = $(this).closest("form");
+                
+                // Update toggle confirmation modal content
+                $("#toggle-forecast-name").text(stationName);
+                $("#toggle-forecast-coordinates").text(coordinates);
+                $("#toggle-forecast-current-status").html(`<span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${currentStatus}</span>`);
+                
+                if (isActive) {
+                    // Disabling
+                    $("#toggle-forecast-modal-content").css("border-top-color", "#b91c1c");
+                    $("#toggle-forecast-icon").removeClass("fa-toggle-on").addClass("fa-toggle-off").css("color", "#b91c1c");
+                    $("#toggle-forecast-title").text("Disable Forecast Location");
+                    $("#toggle-forecast-message").text("Are you sure you want to disable this forecast location?");
+                    $("#toggle-forecast-new-status-badge").removeClass("status-active").addClass("status-inactive").text("Inactive");
+                    $("#confirm-toggle-forecast").removeClass("success-btn").addClass("danger-btn");
+                } else {
+                    // Enabling
+                    $("#toggle-forecast-modal-content").css("border-top-color", "#10b981");
+                    $("#toggle-forecast-icon").removeClass("fa-toggle-off").addClass("fa-toggle-on").css("color", "#10b981");
+                    $("#toggle-forecast-title").text("Enable Forecast Location");
+                    $("#toggle-forecast-message").text("Are you sure you want to enable this forecast location?");
+                    $("#toggle-forecast-new-status-badge").removeClass("status-inactive").addClass("status-active").text("Active");
+                    $("#confirm-toggle-forecast").removeClass("danger-btn").addClass("success-btn");
+                }
+                
+                // Show the confirmation modal
+                showModal("toggle-forecast-confirmation-modal");
+            });
+            
+            // Handle cancel toggle forecast
+            $("#cancel-toggle-forecast").click(function() {
+                hideModal("toggle-forecast-confirmation-modal");
+                currentToggleForecastForm = null;
+            });
+            
+            // Handle confirm toggle forecast
+            $("#confirm-toggle-forecast").click(function() {
+                if (currentToggleForecastForm) {
+                    currentToggleForecastForm.submit();
+                }
+                hideModal("toggle-forecast-confirmation-modal");
+            });
+
+            // Update report button text based on format selection
+            $('.report-form select[name="format"]').change(function() {
+                const selectedFormat = $(this).val();
+                const buttonText = selectedFormat === 'chart' ? 'Generate Report Chart' : 'Generate Report';
+                const buttonElement = $(this).closest('form').find('.report-btn-text');
+                
+                // Apply animation only when Chart Report is selected
+                if (selectedFormat === 'chart') {
+                    // Add animation classes to button
+                    const actionBtn = buttonElement.closest('.action-btn');
+                    actionBtn.addClass('chart-format-selected');
+                    
+                    // Animate the text change
+                    buttonElement.fadeOut(200, function() {
+                        $(this).text(buttonText);
+                        $(this).fadeIn(200);
+                    });
+                    
+                    // Highlight the station selection to draw attention
+                    const stationSelect = $(this).closest('form').find('select[name="station_id"]');
+                    stationSelect.addClass('highlight-station-select');
+                    setTimeout(() => {
+                        stationSelect.removeClass('highlight-station-select');
+                    }, 1500);
+                } else {
+                    // Simple text change for other formats
+                    buttonElement.text(buttonText);
+                    $(this).closest('form').find('.action-btn').removeClass('chart-format-selected');
+                }
+                
+                // For water level report, validate station selection when chart format is selected
+                if ($(this).closest('form').find('input[name="report_type"]').val() === 'water_level') {
+                    const stationSelect = $(this).closest('form').find('select[name="station_id"]');
+                    const validationMessage = $(this).closest('form').find('.station-validation-message');
+                    
+                    if (selectedFormat === 'chart') {
+                        // Show validation message if "All Water Stations" is selected
+                        if (stationSelect.val() === 'all') {
+                            validationMessage.show();
+                        } else {
+                            validationMessage.hide();
+                        }
+                    } else {
+                        // Hide validation message for other formats
+                        validationMessage.hide();
+                    }
+                }
+            });
+            
+            // Validate station selection when changed
+            $('.station-select').change(function() {
+                const formatSelect = $(this).closest('form').find('select[name="format"]');
+                const validationMessage = $(this).closest('form').find('.station-validation-message');
+                
+                if (formatSelect.val() === 'chart' && $(this).val() === 'all') {
+                    validationMessage.show();
+                } else {
+                    validationMessage.hide();
+                }
+            });
+            
+            // Form validation for chart report
+            $('form:has(input[name="report_type"][value="water_level"])').submit(function(e) {
+                const formatSelect = $(this).find('select[name="format"]');
+                const stationSelect = $(this).find('select[name="station_id"]');
+                
+                if (formatSelect.val() === 'chart' && stationSelect.val() === 'all') {
+                    e.preventDefault();
+                    $(this).find('.station-validation-message').show();
+                    stationSelect.focus();
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html> 
