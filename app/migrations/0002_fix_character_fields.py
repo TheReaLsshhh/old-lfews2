@@ -24,6 +24,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='waterlevelstation',
             name='modbus_ip',
-            field=models.GenericIPAddressField(protocol='IPv4', max_length=255),
+            field=models.GenericIPAddressField(protocol='IPv4'),
         ),
     ] 
