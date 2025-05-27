@@ -1412,6 +1412,79 @@
             padding: 4px;
             border-radius: 8px;
         }
+
+        .mobile-sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            padding: 8px;
+            margin-right: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-sidebar-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .mobile-sidebar-toggle:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-sidebar-toggle {
+                display: block;
+            }
+
+            .header-title {
+                display: flex;
+                align-items: center;
+            }
+
+            .main {
+                margin-left: 0;
+                width: 100%;
+                padding: 80px 20px 20px;
+            }
+
+            .header-container {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 20px;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 1000;
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                backdrop-filter: blur(2px);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 
@@ -1424,6 +1497,9 @@
     <div class="page-header">
         <div class="header-container">
             <div class="header-title">
+                <button class="mobile-sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <i class="fas fa-water"></i>
                 <span>Water Level Dashboard</span>
             </div>
@@ -2942,6 +3018,38 @@
             window.toggleGraphType = toggleGraphType;
             window.resetZoom = resetZoom;
             window.downloadGraphData = downloadGraphData;
+
+            // Mobile sidebar toggle functionality
+            $('.mobile-sidebar-toggle').click(function(e) {
+                e.stopPropagation();
+                $('.sidebar').toggleClass('show');
+                
+                // Create or show overlay
+                let overlay = $('.sidebar-overlay');
+                if (overlay.length === 0) {
+                    overlay = $('<div class="sidebar-overlay"></div>');
+                    $('body').append(overlay);
+                }
+                setTimeout(() => overlay.toggleClass('show'), 10);
+                
+                // Handle overlay click to close sidebar
+                overlay.on('click', function() {
+                    $('.sidebar').removeClass('show');
+                    overlay.removeClass('show');
+                    setTimeout(() => overlay.remove(), 300);
+                });
+            });
+
+            // Close sidebar when clicking outside on mobile
+            $(document).on('click', function(e) {
+                if ($(window).width() <= 768) {
+                    if (!$(e.target).closest('.sidebar').length && !$(e.target).closest('.mobile-sidebar-toggle').length) {
+                        $('.sidebar').removeClass('show');
+                        $('.sidebar-overlay').removeClass('show');
+                        setTimeout(() => $('.sidebar-overlay').remove(), 300);
+                    }
+                }
+            });
         });
     </script>
 
