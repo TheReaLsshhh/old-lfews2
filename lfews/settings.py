@@ -80,6 +80,17 @@ WSGI_APPLICATION = 'lfews.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+DATABASES = {
+    # Use the MySQL database for development
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'old-lfews',
+        'USER': 'root',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '3306',
+    }
+}
 # Check if running on Render.com
 if 'RENDER' in os.environ:
     # Production Database
