@@ -91,28 +91,8 @@ DATABASES = {
         'PORT': '3306',
     }
 }
-# Check if running on Render.com
-if 'RENDER' in os.environ:
-    # Production Database
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.environ.get('DATABASE_URL'),
-            conn_max_age=600
-        )
-    }
-else:
-    # Local Development Database
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'old_lfews',
-            'USER': 'old_lfews_user',
-            'PASSWORD': 'M5v9cPywnM5arU637mm9YtlotdkUfvvs',
-            'HOST': 'dpg-d0q8c7a4d50c73c0loog-a.oregon-postgres.render.com',
-            'PORT': '5432',
-        }
-    }
 
+DATABASES["default"] = dj_database_url.parse("postgresql://old_lfews_p0np_user:bMrvmx5TY8fq9XOZXOoZox8dKNY4vRHy@dpg-d0qjg33uibrs73elghsg-a.oregon-postgres.render.com/old_lfews_p0np")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
