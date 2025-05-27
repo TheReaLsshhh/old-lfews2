@@ -4,8 +4,8 @@ from django.contrib.auth.models import User
 
 
 class WaterLevelStation(models.Model):
-    name = models.CharField(max_length=255)  # Station name (e.g., "Pagatban Bridge")
-    station_id = models.CharField(max_length=255, unique=True)  # Unique identifier
+    name = models.CharField(max_length=100)  # Station name (e.g., "Pagatban Bridge")
+    station_id = models.CharField(max_length=50, unique=True)  # Unique identifier
     green_threshold = models.FloatField()
     yellow_threshold = models.FloatField()
     orange_threshold = models.FloatField() 
@@ -14,7 +14,7 @@ class WaterLevelStation(models.Model):
     modbus_port = models.IntegerField(default=100)
     unit_id = models.IntegerField(default=1)
     register_address = models.IntegerField(default=6)
-    status = models.CharField(max_length=255, default="active")
+    status = models.CharField(max_length=100, default="active")
     date_created = models.DateTimeField(auto_now_add=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
