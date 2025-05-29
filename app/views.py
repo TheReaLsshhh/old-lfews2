@@ -33,6 +33,33 @@ from io import BytesIO
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ConnectionException
 
+# Helper function to format datetime to 12-hour format
+def format_datetime_12h(dt):
+    if not dt:
+        return 'N/A'
+    try:
+        if isinstance(dt, str):
+            dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        return dt.strftime('%Y-%m-%d %I:%M:%S %p')
+    except Exception:
+        return dt
+
+# Helper function to format time to 12-hour format
+def format_time_12h(time_obj):
+    if not time_obj:
+        return 'N/A'
+    try:
+        if isinstance(time_obj, str):
+            # Try to parse the time string
+            if 'T' in time_obj:  # ISO format
+                dt = datetime.fromisoformat(time_obj.replace('Z', '+00:00'))
+                return dt.strftime('%I:%M:%S %p')
+            else:
+                time_obj = datetime.strptime(time_obj, '%H:%M:%S').time()
+        return time_obj.strftime('%I:%M:%S %p')
+    except Exception:
+        return time_obj
+
 # Create your views here.
 def is_superuser(user):
     return user.is_superuser
@@ -372,14 +399,18 @@ def fetch_weather_data(request):
                     'offset': timezone_offset
                 }
                 
-                # Add logs to the response with timezone info
+                # Add logs to the response with timezone info and 12-hour format
                 station_data['logs'] = [{
-                    'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S %z'),  # Include timezone offset
+                    'timestamp': format_datetime_12h(log.timestamp),
                     'temperature': log.temperature,
                     'humidity': log.humidity,
                     'wind_speed': log.wind_speed,
                     'precipitation_total': log.precipitation_total
                 } for log in recent_logs]
+                
+                # Format the observation time in 12-hour format
+                if 'observation_time' in station_data:
+                    station_data['observation_time'] = format_datetime_12h(station_data['observation_time'])
                 
                 # Add to response
                 weather_data[station_id] = station_data
@@ -1319,7 +1350,7 @@ def generate_report(request):
                         station.longitude if station.longitude is not None else 'N/A',
                         station.status,
                         reading.date.strftime('%Y-%m-%d'),
-                        format_time_12hr(reading.time),  # Convert to 12-hour format
+                        format_time_12h(reading.time),  # Convert to 12-hour format
                         f"{reading.data:.2f}",
                     ]
                     
@@ -1400,7 +1431,7 @@ def generate_report(request):
                         station.longitude if station.longitude is not None else 'N/A',
                         station.status,
                         record.timestamp.strftime('%Y-%m-%d'),
-                        format_time_12hr(record.timestamp),  # Convert to 12-hour format
+                        format_time_12h(record.timestamp),  # Convert to 12-hour format
                     ]
                     
                     if include_temp:
@@ -1932,7 +1963,7 @@ def get_station_updates(request):
                     
                     updates[f"water_{station_id}"] = {
                         'reading': latest_data.data,
-                        'time': f"{latest_data.date} {latest_data.time}",
+                        'time': format_datetime_12h(f"{latest_data.date} {latest_data.time}"),
                         'alert_level': alert_level
                     }
             except WaterLevelStation.DoesNotExist:
@@ -1977,7 +2008,7 @@ def get_station_updates(request):
                         'wind_speed': wind_speed,
                         'wind_direction': latest_weather.wind_direction,
                         'precipitation_rate': precipitation_rate,
-                        'time': latest_weather.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                        'time': format_datetime_12h(latest_weather.timestamp)
                     }
             except WeatherStation.DoesNotExist:
                 pass
