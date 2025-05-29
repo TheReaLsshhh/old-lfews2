@@ -691,28 +691,6 @@
                 if (!dateTimeStr || dateTimeStr === 'N/A') return 'N/A';
                 
                 try {
-                    // Special case for the format in the image (05/29/2025, 11:41:55 AM)
-                    const dateRegex = /(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2}) (AM|PM)/;
-                    if (dateRegex.test(dateTimeStr)) {
-                        // Replace future year with current year
-                        const currentYear = new Date().getFullYear();
-                        return dateTimeStr.replace(/\/\d{4},/, `/${currentYear},`);
-                    }
-                    
-                    // Handle the specific format from the weather station API (MM/DD/YYYY, HH:MM:SS AM/PM)
-                    if (dateTimeStr.includes('/') && dateTimeStr.includes(',')) {
-                        // Extract parts from the date string
-                        const datePart = dateTimeStr.split(',')[0].trim();
-                        const timePart = dateTimeStr.split(',')[1].trim();
-                        
-                        // Fix year if it's showing 2025 (API issue)
-                        const currentYear = new Date().getFullYear();
-                        const fixedDatePart = datePart.replace(/\/\d{4}$/, `/${currentYear}`);
-                        
-                        // Return the corrected format
-                        return `${fixedDatePart}, ${timePart}`;
-                    }
-                    
                     const date = new Date(dateTimeStr);
                     if (isNaN(date.getTime())) {
                         // If it's just a time string (HH:MM:SS)
