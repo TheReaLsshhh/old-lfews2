@@ -571,7 +571,16 @@
         $(document).ready(function() {
             // Set current date
             const currentDate = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateOptions = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
             $("#currentDate").text(currentDate.toLocaleDateString('en-US', dateOptions));
             
             // Handle sidebar toggle for responsiveness
@@ -677,11 +686,33 @@
                 })
             };
             
-            // Function to convert 24-hour time to 12-hour format with proper date handling
+            // Function to format date to 12-hour time
             function formatTo12Hour(dateTimeStr) {
                 if (!dateTimeStr || dateTimeStr === 'N/A') return 'N/A';
                 
                 try {
+                    // Special case for the format in the image (05/29/2025, 11:41:55 AM)
+                    const dateRegex = /(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2}) (AM|PM)/;
+                    if (dateRegex.test(dateTimeStr)) {
+                        // Replace future year with current year
+                        const currentYear = new Date().getFullYear();
+                        return dateTimeStr.replace(/\/\d{4},/, `/${currentYear},`);
+                    }
+                    
+                    // Handle the specific format from the weather station API (MM/DD/YYYY, HH:MM:SS AM/PM)
+                    if (dateTimeStr.includes('/') && dateTimeStr.includes(',')) {
+                        // Extract parts from the date string
+                        const datePart = dateTimeStr.split(',')[0].trim();
+                        const timePart = dateTimeStr.split(',')[1].trim();
+                        
+                        // Fix year if it's showing 2025 (API issue)
+                        const currentYear = new Date().getFullYear();
+                        const fixedDatePart = datePart.replace(/\/\d{4}$/, `/${currentYear}`);
+                        
+                        // Return the corrected format
+                        return `${fixedDatePart}, ${timePart}`;
+                    }
+                    
                     const date = new Date(dateTimeStr);
                     if (isNaN(date.getTime())) {
                         // If it's just a time string (HH:MM:SS)
@@ -738,7 +769,7 @@
                                     <dd id="water-status-${station.id}" class="alert-${station.alert_level}">${getAlertText(station.alert_level)}</dd>
                                     
                                     <dt>Last Update:</dt>
-                                    <dd id="water-time-${station.id}">${formatTo12Hour(station.last_reading_time) || 'N/A'}</dd>
+                                    <dd id="water-time-${station.id}">${station.last_reading_time || 'N/A'}</dd>
                                     
                                     <dt>Thresholds:</dt>
                                     <dd>
@@ -765,7 +796,7 @@
                     waterStationIds.push(station.id);
                     
                 } else if (station.type === 'weather') {
-                    // Create weather station popup content with 12-hour time format
+                    // Create weather station popup content
                     popupContent = `
                         <div class="custom-popup">
                             <div class="station-popup-header weather-header">
@@ -790,7 +821,7 @@
                                     <dd id="weather-precip-${station.id}">${station.precipitation_rate ? station.precipitation_rate + ' mm' : 'N/A'}</dd>
                                     
                                     <dt>Last Update:</dt>
-                                    <dd id="weather-time-${station.id}">${formatTo12Hour(station.last_update) || 'N/A'}</dd>
+                                    <dd id="weather-time-${station.id}">${station.last_update || 'N/A'}</dd>
                                 </dl>
                             </div>
                         </div>
@@ -852,20 +883,20 @@
                                     $(`#water-status-${stationId}`)
                                         .attr('class', `alert-${data.alert_level}`)
                                         .text(getAlertText(data.alert_level));
-                                    $(`#water-time-${stationId}`).text(formatTo12Hour(data.time));
+                                    $(`#water-time-${stationId}`).text(data.time);
                                 }
                                 else if (key.startsWith('weather_')) {
                                     const stationId = key.replace('weather_', '');
                                     const data = response.updates[key];
                                     
-                                    // Update popup content with proper formatting
+                                    // Update popup content
                                     $(`#weather-temp-${stationId}`).text(data.temperature ? data.temperature + ' °C' : 'N/A');
                                     $(`#weather-humidity-${stationId}`).text(data.humidity ? data.humidity + ' %' : 'N/A');
                                     $(`#weather-wind-${stationId}`).text(
                                         data.wind_speed ? data.wind_speed + ' km/h' : 'N/A'
                                     );
                                     $(`#weather-precip-${stationId}`).text(data.precipitation_rate ? data.precipitation_rate + ' mm' : 'N/A');
-                                    $(`#weather-time-${stationId}`).text(formatTo12Hour(data.time));
+                                    $(`#weather-time-${stationId}`).text(data.time);
                                 }
                             });
                         }
