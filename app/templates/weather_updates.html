@@ -812,6 +812,40 @@
                 return directions[index];
             }
             
+            // Function to format date to 12-hour time
+            function formatTo12Hour(dateStr) {
+                if (!dateStr || dateStr === 'N/A') return 'N/A';
+                
+                try {
+                    const date = new Date(dateStr);
+                    if (isNaN(date.getTime())) {
+                        // If it's just a time string (HH:MM:SS)
+                        if (dateStr.includes(':')) {
+                            const [hours, minutes, seconds] = dateStr.split(':');
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const hour12 = hour % 12 || 12;
+                            return `${hour12}:${minutes}:${seconds} ${ampm}`;
+                        }
+                        return dateStr;
+                    }
+                    
+                    // Format full date and time
+                    return date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true
+                    });
+                } catch (e) {
+                    console.error('Error formatting time:', e);
+                    return dateStr;
+                }
+            }
+            
             // Fetch weather data on page load
             fetchWeatherData();
             
@@ -933,17 +967,8 @@
                                 observationTime = new Date(); // Fallback to current time
                             }
                             
-                            // Format with options to ensure consistent display
-                            const dateOptions = { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            };
-                            const formattedTime = observationTime.toLocaleString(undefined, dateOptions);
+                            // Format with options to ensure consistent 12-hour display
+                            const formattedTime = formatTo12Hour(observationTime);
                             
                             // Create weather card HTML
                             const weatherCard = `
@@ -1105,17 +1130,8 @@
                                 observationTime = new Date(); // Fallback to current time
                             }
                             
-                            // Format with options to ensure consistent display
-                            const dateOptions = { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            };
-                            const formattedTime = observationTime.toLocaleString(undefined, dateOptions);
+                            // Format the observation time using 12-hour format
+                            const formattedTime = formatTo12Hour(observationTime);
                             
                             // Populate modal with data
                             $('#modal-station-name').text(stationData.name);
@@ -1162,47 +1178,12 @@
                                 </div>` : ''}
                             `);
                             
-                            // Populate history table
+                            // Populate history table with 12-hour format
                             if (stationData.logs && stationData.logs.length > 0) {
                                 let historyHtml = '';
                                 stationData.logs.forEach(log => {
-                                    let logTime;
-                                    try {
-                                        // Fix timestamp parsing for logs
-                                        if (log.timestamp && log.timestamp !== 'N/A') {
-                                            // Check if it's a year in the future (like 2025)
-                                            if (log.timestamp.includes('2025')) {
-                                                // Adjust the year to current year
-                                                const currentYear = new Date().getFullYear();
-                                                const correctedTime = log.timestamp.replace('2025', currentYear);
-                                                logTime = new Date(correctedTime);
-                                            } else {
-                                                // Parse with timezone information included from the server
-                                                // The timestamp should now include the timezone offset
-                                                logTime = new Date(log.timestamp);
-                                            }
-                                            
-                                            // Apply timezone offset correction
-                                            // This ensures the server time is properly converted to local time
-                                            const serverUtcOffset = logTime.getTimezoneOffset();
-                                            const localTime = new Date();
-                                            const localUtcOffset = localTime.getTimezoneOffset();
-                                            
-                                            // If timezone offsets are different, adjust the time
-                                            if (serverUtcOffset !== localUtcOffset) {
-                                                const offsetDiff = localUtcOffset - serverUtcOffset;
-                                                logTime.setMinutes(logTime.getMinutes() - offsetDiff);
-                                            }
-                                        } else {
-                                            logTime = new Date(); // Default to current time if missing
-                                        }
-                                    } catch (e) {
-                                        console.error("Error parsing log timestamp:", e);
-                                        logTime = new Date(); // Fallback to current time
-                                    }
-                                    
-                                    // Format with same options for consistency
-                                    const formattedLogTime = logTime.toLocaleString(undefined, dateOptions);
+                                    // Format the log timestamp using 12-hour format
+                                    const formattedLogTime = formatTo12Hour(log.timestamp);
                                     
                                     historyHtml += `
                                         <tr>
