@@ -28,7 +28,6 @@ import numpy as np
 import base64
 from django.template.loader import render_to_string
 from io import BytesIO
-from django.utils import timezone
 
 # Add Modbus library import
 from pymodbus.client import ModbusTcpClient
@@ -227,10 +226,9 @@ def start_weather_data_thread():
                             # Get the station object
                             station = WeatherStation.objects.get(station_id=station_id)
                             
-                            # Create WeatherStatus record with current time
+                            # Create WeatherStatus record
                             WeatherStatus.objects.create(
                                 weather_station=station,
-                                timestamp=timezone.now(),  # Use current time
                                 temperature=station_data.get('temperature', 'N/A'),
                                 humidity=station_data.get('humidity', 'N/A'),
                                 wind_speed=station_data.get('wind_speed', 'N/A'),
@@ -288,21 +286,56 @@ def fetch_station_weather_data(station_id):
             observation_time = 'N/A'
             try:
                 # Get the observed time from API, with proper error handling
+                obs_time_utc = observation.get('obsTimeUtc')
                 obs_time_local = observation.get('obsTimeLocal')
+                
                 if obs_time_local:
-                    # Convert API timestamp to proper format
-                    current_year = datetime.now().year
-                    
-                    # Replace any future year with current year (fix for 2025 issue)
-                    if '2025' in obs_time_local:
-                        obs_time_local = obs_time_local.replace('2025', str(current_year))
-                    
-                    # Format in standard ISO format
-                    observation_time = obs_time_local
+                    # Parse the timestamp
+                    if ' ' in obs_time_local:  # Format: '2025-05-29 20:11:40'
+                        date_part, time_part = obs_time_local.split(' ')
+                        
+                        # Fix year if it's in the future
+                        current_year = datetime.now().year
+                        if date_part.startswith('2025') or date_part.startswith('2024'):
+                            date_part = f"{current_year}-{date_part[5:]}"
+                        
+                        # Parse time to convert to 12-hour format
+                        try:
+                            time_obj = datetime.strptime(time_part, '%H:%M:%S')
+                            time_12h = time_obj.strftime('%I:%M:%S %p')
+                            
+                            # Format the final timestamp in MM/DD/YYYY, HH:MM:SS AM/PM format
+                            date_obj = datetime.strptime(date_part, '%Y-%m-%d')
+                            formatted_date = date_obj.strftime('%m/%d/%Y')
+                            observation_time = f"{formatted_date}, {time_12h}"
+                        except ValueError:
+                            # Fallback if time parsing fails
+                            observation_time = f"{date_part}, {time_part}"
+                    else:
+                        # If format is unexpected, use as is
+                        observation_time = obs_time_local
+                elif obs_time_utc:
+                    # Convert UTC time to local time
+                    try:
+                        utc_time = datetime.strptime(obs_time_utc, '%Y-%m-%dT%H:%M:%SZ')
+                        # Use current year instead of future year
+                        current_year = datetime.now().year
+                        if utc_time.year > current_year:
+                            utc_time = utc_time.replace(year=current_year)
+                        
+                        # Convert to local time (using system timezone)
+                        local_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone(settings.TIME_ZONE))
+                        observation_time = local_time.strftime('%m/%d/%Y, %I:%M:%S %p')
+                    except ValueError:
+                        # Fallback to UTC time
+                        observation_time = obs_time_utc
+                else:
+                    # If no time available, use current time
+                    observation_time = datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p')
             except Exception as e:
                 print(f"Error formatting observation time: {str(e)}")
-                # Use current time as fallback with proper 12-hour format
-                observation_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                # Use current time as fallback
+                observation_time = datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p')
             
             # Return the weather data
             return {
@@ -1808,6 +1841,13 @@ def station_map(request):
             elif latest_data.data > station.green_threshold:
                 alert_level = "green"
         
+        # Format time in 12-hour format if data exists
+        formatted_time = None
+        if latest_data:
+            date_str = latest_data.date.strftime('%m/%d/%Y')
+            time_str = latest_data.time.strftime('%I:%M:%S %p')
+            formatted_time = f"{date_str}, {time_str}"
+        
         station_info = {
             'id': station.id,
             'name': station.name,
@@ -1816,7 +1856,7 @@ def station_map(request):
             'latitude': station.latitude,
             'longitude': station.longitude,
             'last_reading': latest_data.data if latest_data else None,
-            'last_reading_time': f"{latest_data.date} {latest_data.get_time_12h()}" if latest_data else None,
+            'last_reading_time': formatted_time,
             'alert_level': alert_level,
             'green_threshold': station.green_threshold,
             'yellow_threshold': station.yellow_threshold,
@@ -1860,6 +1900,15 @@ def station_map(request):
             except (ValueError, TypeError):
                 precipitation_rate = latest_weather.precipitation_rate
         
+        # Format time in 12-hour format
+        formatted_time = None
+        if latest_weather:
+            formatted_time = latest_weather.get_formatted_timestamp()
+            # Fix any future year to current year
+            current_year = datetime.now().year
+            if '/2025,' in formatted_time or '/2024,' in formatted_time:
+                formatted_time = formatted_time.replace(f'/{formatted_time.split("/")[2].split(",")[0]},', f'/{current_year},')
+        
         weather_info = {
             'id': station.id,
             'name': station.name,
@@ -1873,7 +1922,7 @@ def station_map(request):
             'wind_direction': latest_weather.wind_direction if latest_weather else None,
             'pressure': latest_weather.pressure if latest_weather else None,
             'precipitation_rate': precipitation_rate,
-            'last_update': latest_weather.get_formatted_timestamp() if latest_weather else None
+            'last_update': formatted_time
         }
         stations_data.append(weather_info)
     
@@ -1932,9 +1981,14 @@ def get_station_updates(request):
                     elif latest_data.data > station.green_threshold:
                         alert_level = "green"
                     
+                    # Format time in 12-hour format
+                    date_str = latest_data.date.strftime('%m/%d/%Y')
+                    time_str = latest_data.time.strftime('%I:%M:%S %p')
+                    formatted_time = f"{date_str}, {time_str}"
+                    
                     updates[f"water_{station_id}"] = {
                         'reading': latest_data.data,
-                        'time': f"{latest_data.date} {latest_data.get_time_12h()}",
+                        'time': formatted_time,
                         'alert_level': alert_level
                     }
             except WaterLevelStation.DoesNotExist:
@@ -1973,13 +2027,21 @@ def get_station_updates(request):
                     except (ValueError, TypeError):
                         precipitation_rate = latest_weather.precipitation_rate
                     
+                    # Format time in 12-hour format
+                    formatted_time = latest_weather.get_formatted_timestamp()
+                    
+                    # Fix any future year to current year
+                    current_year = datetime.now().year
+                    if '/2025,' in formatted_time or '/2024,' in formatted_time:
+                        formatted_time = formatted_time.replace(f'/{formatted_time.split("/")[2].split(",")[0]},', f'/{current_year},')
+                    
                     updates[f"weather_{station_id}"] = {
                         'temperature': temperature,
                         'humidity': humidity,
                         'wind_speed': wind_speed,
                         'wind_direction': latest_weather.wind_direction,
                         'precipitation_rate': precipitation_rate,
-                        'time': latest_weather.get_formatted_timestamp()
+                        'time': formatted_time
                     }
             except WeatherStation.DoesNotExist:
                 pass
