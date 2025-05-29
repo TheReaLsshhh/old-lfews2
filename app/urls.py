@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 
 urlpatterns = [
     
-    path('', views.root_redirect),
+    path('root-redirect/', views.root_redirect),
     path('admin-login/', views.admin_login, name='admin_login'),
     path('logout/', views.admin_logout, name='admin_logout'),
     path('dashboard/', views.dashboard, name='dashboard'),

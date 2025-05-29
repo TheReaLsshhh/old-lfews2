@@ -185,49 +185,57 @@
         color: var(--accent-color);
     }
 
-    /* Improve toggle button */
+    /* Updated arrow toggle button styles */
     .sidebar-toggle-btn {
         position: fixed;
-        top: 20px;
-        left: 210px;
-        background: rgba(1, 49, 110, 0.8);
-        color: var(--accent-color);
+        top: 50%;
+        left: 250px;
+        transform: translateY(-50%);
+        background: var(--sidebar-bg);
+        color: var(--text-color);
         border: none;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
+        width: 28px;
+        height: 60px;
+        border-radius: 0 8px 8px 0;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         z-index: 1000;
         transition: all var(--transition-speed);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        box-shadow: 4px 0 12px rgba(0,0,0,0.15);
         padding: 0;
+        overflow: hidden;
     }
     
     .sidebar-toggle-btn:hover {
-        background: var(--sidebar-active);
-        transform: scale(1.1);
+        background: var(--sidebar-hover);
+        width: 32px;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.2);
     }
     
-    .sidebar-toggle-btn .sidebar-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
+    .sidebar-toggle-btn:active {
+        width: 28px;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    }
+
+    .sidebar-toggle-btn .fas {
+        font-size: 16px;
+        transition: transform 0.3s ease;
+        color: var(--text-color);
     }
     
-    .sidebar.hidden + .sidebar-toggle-btn,
-    .sidebar-toggle-btn.sidebar-visible {
-        left: 20px;
-        background: var(--sidebar-bg);
+    .sidebar.hidden + .sidebar-toggle-btn {
+        left: 0;
+    }
+
+    .sidebar.hidden + .sidebar-toggle-btn .fas {
+        transform: rotate(180deg);
     }
     
     .sidebar-toggle-btn:focus {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(118, 224, 149, 0.5);
+        box-shadow: 4px 0 0 3px rgba(118, 224, 149, 0.3), 4px 0 12px rgba(0,0,0,0.15);
     }
 
     /* Footer section for logout */
@@ -377,10 +385,12 @@
         .sidebar {
             transform: translateX(-100%);
             width: 280px !important;
+            z-index: 1001;
         }
 
         .sidebar.active {
             transform: translateX(0);
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
         }
 
         .main-content {
@@ -388,7 +398,43 @@
         }
         
         .sidebar-toggle-btn {
+            display: flex !important;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 50px;
+            border-radius: 0 6px 6px 0;
+            background: var(--sidebar-bg);
+            opacity: 0.9;
+        }
+
+        .sidebar.active + .sidebar-toggle-btn {
+            left: 280px;
+        }
+
+        .sidebar-toggle-btn:hover {
+            opacity: 1;
+            width: 28px;
+        }
+
+        /* Add overlay when sidebar is active on mobile */
+        .sidebar-overlay {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
         }
     }
     </style>
@@ -409,7 +455,7 @@
                 <div class="menu-container">
                     <a href="{% url 'dashboard' %}" class="{% if request.path == '/dashboard/' %}active{% endif %}">
                         <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
+                        <span>Water Level Updates</span>
                     </a>
                 </div>
             </li>
@@ -463,10 +509,13 @@
     </div>
 </div>
 
-<!-- Toggle Button: Always visible, outside sidebar -->
+<!-- Toggle Button with arrow icon -->
 <button class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
-    <i class="fas fa-bars"></i>
+    <i class="fas fa-chevron-left"></i>
 </button>
+
+<!-- Add overlay div for mobile -->
+<div class="sidebar-overlay"></div>
 
 <!-- Logout Modal - Scoped with a specific class -->
 <div id="sidebarLogoutModal" class="sidebar-logout-modal">
@@ -488,32 +537,52 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
+    const $sidebar = $('.sidebar');
+    const $overlay = $('.sidebar-overlay');
+    const $toggleBtn = $('.sidebar-toggle-btn');
+    
     // Toggle sidebar visibility
-    $('.sidebar-toggle-btn').click(function() {
-        $('.sidebar').toggleClass('hidden');
-        $('.main-content').toggleClass('sidebar-hidden');
-        $(this).toggleClass('sidebar-visible');
+    $toggleBtn.click(function(e) {
+        e.stopPropagation();
+        $sidebar.toggleClass('active hidden');
+        $overlay.toggleClass('active');
+        
+        // Update ARIA label based on sidebar state
+        const isHidden = $sidebar.hasClass('hidden');
+        $(this).attr('aria-label', isHidden ? 'Show Sidebar' : 'Hide Sidebar');
     });
 
-    // Handle mobile menu toggle
-    $('.menu-toggle').click(function() {
-        $('.sidebar').toggleClass('active');
+    // Handle overlay click on mobile
+    $overlay.click(function() {
+        $sidebar.removeClass('active');
+        $overlay.removeClass('active');
     });
 
     // Close sidebar when clicking outside on mobile
     $(document).click(function(e) {
         if ($(window).width() <= 768) {
-            if (!$(e.target).closest('.sidebar, .menu-toggle, .sidebar-toggle-btn').length) {
-                $('.sidebar').removeClass('active');
+            if (!$(e.target).closest('.sidebar, .sidebar-toggle-btn').length) {
+                $sidebar.removeClass('active');
+                $overlay.removeClass('active');
             }
         }
     });
 
-    // Reset sidebar on resize
+    // Prevent clicks inside sidebar from closing it
+    $sidebar.click(function(e) {
+        e.stopPropagation();
+    });
+
+    // Reset sidebar state on resize
+    let resizeTimer;
     $(window).resize(function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
         if ($(window).width() > 768) {
-            $('.sidebar').removeClass('active');
+                $sidebar.removeClass('active');
+                $overlay.removeClass('active');
         }
+        }, 250);
     });
 });
 

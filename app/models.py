@@ -29,7 +29,6 @@ class WaterLevelData(models.Model):
     date = models.DateField(auto_now_add=True)
     time = models.TimeField(auto_now_add=True)
     data = models.FloatField()  # Stores water level in centimeters
-    type = models.CharField(max_length=255, default="live")
     
     class Meta:
         ordering = ['-date', '-time']

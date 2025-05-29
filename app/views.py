@@ -44,7 +44,7 @@ def root_redirect(request):
 
 def admin_login(request):
     if request.user.is_authenticated:
-        return redirect('station_map')
+        return redirect('dashboard')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -54,7 +54,7 @@ def admin_login(request):
         if user is not None and user.is_superuser:
             login(request, user)
             Logs.objects.create(user=user, action='login')
-            return redirect('station_map')
+            return redirect('dashboard')
         else:
             messages.error(request, 'Invalid credentials.')
 
@@ -134,28 +134,25 @@ def fetch_water_level(request):
         end_date = datetime.now().strftime('%Y-%m-%d')
     
     for station in stations:
-        # Get live data
+        # Get data for the date range
         station_data = WaterLevelData.objects.filter(
             station=station,
             date__gte=start_date,
-            date__lte=end_date,
-            type='live'  # Only include live data
+            date__lte=end_date
         ).order_by('date', 'time')
         
-        live_data_count = station_data.count()
-        print(f"Found {live_data_count} live data points for {station.name}")
+        data_count = station_data.count()
+        print(f"Found {data_count} data points for {station.name}")
         
-        # If no live data exists, create a fallback entry so the station shows up
-        if live_data_count == 0:
-            print(f"No live data found for station {station.name}. Creating a placeholder entry.")
-            # Create a placeholder entry with a zero value but don't save it to the database
+        # If no data exists, create a fallback entry
+        if data_count == 0:
+            print(f"No data found for station {station.name}. Creating a placeholder entry.")
             current_time = datetime.now()
             placeholder = WaterLevelData(
                 station=station,
                 data=0,  # Zero value indicates no actual data yet
                 date=current_time.date(),
-                time=current_time.time(),
-                type='placeholder'  # Mark as placeholder
+                time=current_time.time()
             )
             # Instead of saving to DB, just create a queryset-like object with this placeholder
             station_data = [placeholder]
@@ -163,20 +160,17 @@ def fetch_water_level(request):
         # Prepare data for chart
         dates = []
         values = []
-        data_types = []
         
         # Handle both querysets and lists (for placeholder data)
         for data_point in station_data:
             timestamp = f"{data_point.date.strftime('%Y-%m-%d')} {data_point.time.strftime('%H:%M:%S')}"
             dates.append(timestamp)
             values.append(data_point.data)
-            data_types.append(data_point.type)
         
         # Debug info
         print(f"Station {station.name} response data:")
         print(f"  - Dates: {len(dates)} entries")
         print(f"  - Values: {len(values)} entries")
-        print(f"  - Types: {data_types}")
         
         response_data[station.station_id] = {
             'name': station.name,
@@ -188,9 +182,8 @@ def fetch_water_level(request):
             'orange_threshold': station.orange_threshold,
             'red_threshold': station.red_threshold,
             'latest_value': values[-1] if values else None,
-            'has_live_data': any(data_type == 'live' for data_type in data_types) if data_types else False,
-            'is_test_data': False,  # Always set to False since we're not using test data
-            'data_types': data_types
+            'has_data': len(values) > 0,
+            'is_test_data': False
         }
     
     return JsonResponse(response_data)
@@ -1180,134 +1173,8 @@ def start_forecast_thread_on_server_start():
 # Call the function to start the thread when the module is loaded
 start_forecast_thread_on_server_start()
 
-# Global variable to track if the water level data fetching thread is running
-water_level_fetch_thread_running = False
-
-# Function to fetch and store water level data from modbus sensors periodically
-def start_water_level_thread():
-    global water_level_fetch_thread_running
-    
-    if water_level_fetch_thread_running:
-        return  # Thread already running
-    
-    water_level_fetch_thread_running = True
-    
-    def fetch_and_store_water_level_data():
-        global water_level_fetch_thread_running
-        
-        while water_level_fetch_thread_running:
-            try:
-                # Get all active water level stations with their configurations
-                active_stations = WaterLevelStation.objects.filter(status='active')
-                
-                # Get the current time for timestamping
-                current_time = datetime.now()
-                current_date = current_time.date()
-                
-                print(f"\n[{current_time}] Starting water level data collection cycle...")
-                
-                # Fetch data for each station and store in DB
-                for station in active_stations:
-                    client = None
-                    try:
-                        # Get the modbus configuration from the station object
-                        modbus_ip = station.modbus_ip.strip()  # Remove any whitespace
-                        modbus_port = int(station.modbus_port)
-                        unit_id = int(station.unit_id)
-                        register_address = int(station.register_address)
-                        
-                        print(f"[{current_time}] Processing {station.name} - IP: {modbus_ip}, Port: {modbus_port}, "
-                              f"Unit: {unit_id}, Register: {register_address}")
-                        
-                        # Create Modbus client with configuration from database
-                        client = ModbusTcpClient(
-                            host=modbus_ip,
-                            port=modbus_port,
-                            timeout=2.0  # 2 second timeout for connection
-                        )
-                        
-                        # Try to connect multiple times
-                        for attempt in range(3):  # Try 3 times
-                            try:
-                                connection = client.connect()
-                                if connection:
-                                    print(f"[{current_time}] Connected to {station.name} at {modbus_ip}:{modbus_port}")
-                                    
-                                    # Read holding register
-                                    response = client.read_holding_registers(
-                                        address=register_address,
-                                        count=1
-                                    )
-                                    
-                                    if response and hasattr(response, 'registers') and len(response.registers) > 0:
-                                        # Get value from Modbus (this is in mm)
-                                        level_value_mm = float(response.registers[0])
-                                        print(f"[{current_time}] Raw reading from {station.name}: {level_value_mm}mm")
-                                        
-                                        # Only process if we have a valid reading
-                                        if level_value_mm > 0:
-                                            # Convert from mm to cm by dividing by 10
-                                            level_value_cm = level_value_mm / 10.0
-                                            
-                                            try:
-                                                # Create WaterLevelData record
-                                                WaterLevelData.objects.create(
-                                                    station=station,
-                                                    data=level_value_cm,  # Store as cm
-                                                    date=current_date,
-                                                    time=current_time.time(),
-                                                    type='live'  # Mark as live data
-                                                )
-                                                print(f"[{current_time}] Successfully stored water level data for {station.name}: {level_value_cm} cm")
-                                                break  # Exit retry loop on success
-                                            except Exception as db_error:
-                                                print(f"[{current_time}] Database error for {station.name}: {str(db_error)}")
-                                        else:
-                                            print(f"[{current_time}] Skipping invalid reading (0) for station {station.name}")
-                                    else:
-                                        print(f"[{current_time}] No valid data in response for {station.name}: {response if response else 'No response'}")
-                                else:
-                                    print(f"[{current_time}] Connection attempt {attempt + 1} failed for {station.name} at {modbus_ip}:{modbus_port}")
-                                    time.sleep(1)  # Wait 1 second between retries
-                            except ModbusException as me:
-                                print(f"[{current_time}] Modbus error on attempt {attempt + 1} for {station.name}: {str(me)}")
-                                time.sleep(1)  # Wait 1 second between retries
-                            except Exception as e:
-                                print(f"[{current_time}] Error on attempt {attempt + 1} for {station.name}: {str(e)}")
-                                time.sleep(1)  # Wait 1 second between retries
-                            finally:
-                                if client and not connection:
-                                    client.close()
-                    except Exception as e:
-                        print(f"[{current_time}] Setup error for {station.name} ({modbus_ip}:{modbus_port}): {str(e)}")
-                    finally:
-                        # Always close the connection if it was created
-                        if client:
-                            try:
-                                client.close()
-                            except:
-                                pass  # Ignore errors during close
-                
-                print(f"[{current_time}] Completed data collection cycle. Waiting 60 seconds before next cycle...")
-                # Sleep for 60 seconds before next collection cycle
-                time.sleep(60)  # Check every 60 seconds for new data
-                
-            except Exception as e:
-                print(f"[{datetime.now()}] Error in water level data thread: {str(e)}")
-                time.sleep(60)  # On error, also wait 60 seconds before retry
-    
-    # Start the thread
-    thread = threading.Thread(target=fetch_and_store_water_level_data)
-    thread.daemon = True  # Allow the thread to exit when the main program exits
-    thread.start()
-    print("Started water level data collection thread")
-
-# Start the water level data thread when the server starts
-def start_water_level_thread_on_server_start():
-    threading.Timer(5, start_water_level_thread).start()
-
-# Call the function to start the thread when the module is loaded
-start_water_level_thread_on_server_start()
+# Note: Water level data collection has been moved to a standalone script (water_level_collector.py)
+# This provides more reliable data collection independent of Django's development server lifecycle
 
 @login_required
 def activity_logs(request):
