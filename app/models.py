@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User 
+from django.utils import timezone
+from datetime import datetime
 
 
 
@@ -36,13 +38,9 @@ class WaterLevelData(models.Model):
     def __str__(self):
         return f"{self.station.name} - {self.date} {self.time} - {self.data} cm"
     
-    def get_formatted_time(self):
-        """Return the time in 12-hour format"""
+    def get_time_12h(self):
+        """Return time in 12-hour format"""
         return self.time.strftime("%I:%M:%S %p")
-    
-    def get_formatted_date_time(self):
-        """Return the date and time in 12-hour format"""
-        return f"{self.date.strftime('%m/%d/%Y')}, {self.time.strftime('%I:%M:%S %p')}"
     
     
 class WeatherStation(models.Model):
@@ -59,7 +57,7 @@ class WeatherStation(models.Model):
 
 class WeatherStatus(models.Model):
     weather_station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='weather_logs')
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=timezone.now)
     temperature = models.CharField(max_length=255, null=True, blank=True)
     humidity = models.CharField(max_length=255, null=True, blank=True)
     wind_speed = models.CharField(max_length=255, null=True, blank=True)
@@ -77,8 +75,8 @@ class WeatherStatus(models.Model):
     def __str__(self):
         return f"{self.weather_station.name} - {self.timestamp} - {self.temperature}°C"
     
-    def get_formatted_time(self):
-        """Return the timestamp in 12-hour format"""
+    def get_formatted_timestamp(self):
+        """Return timestamp in MM/DD/YYYY, HH:MM:SS AM/PM format"""
         return self.timestamp.strftime("%m/%d/%Y, %I:%M:%S %p")
     
 
