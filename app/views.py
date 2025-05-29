@@ -39,12 +39,12 @@ def is_superuser(user):
 
 
 def root_redirect(request):
-    return redirect('admin_login')
+    return redirect('/admin_login/')
 
 
 def admin_login(request):
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return redirect('/dashboard/')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -54,7 +54,7 @@ def admin_login(request):
         if user is not None and user.is_superuser:
             login(request, user)
             Logs.objects.create(user=user, action='login')
-            return redirect('dashboard')
+            return redirect('/dashboard/')
         else:
             messages.error(request, 'Invalid credentials.')
 
@@ -144,19 +144,6 @@ def fetch_water_level(request):
         data_count = station_data.count()
         print(f"Found {data_count} data points for {station.name}")
         
-        # If no data exists, create a fallback entry
-        if data_count == 0:
-            print(f"No data found for station {station.name}. Creating a placeholder entry.")
-            current_time = datetime.now()
-            placeholder = WaterLevelData(
-                station=station,
-                data=0,  # Zero value indicates no actual data yet
-                date=current_time.date(),
-                time=current_time.time()
-            )
-            # Instead of saving to DB, just create a queryset-like object with this placeholder
-            station_data = [placeholder]
-        
         # Prepare data for chart
         dates = []
         values = []
@@ -182,8 +169,7 @@ def fetch_water_level(request):
             'orange_threshold': station.orange_threshold,
             'red_threshold': station.red_threshold,
             'latest_value': values[-1] if values else None,
-            'has_data': len(values) > 0,
-            'is_test_data': False
+            'has_data': len(values) > 0
         }
     
     return JsonResponse(response_data)
@@ -1269,6 +1255,10 @@ def generate_report(request):
     except ValueError:
         messages.error(request, 'Invalid date format')
         return redirect('settings')
+
+    def format_time_12hr(time_obj):
+        """Helper function to format time in 12-hour format"""
+        return time_obj.strftime('%I:%M:%S %p')
         
     if report_type == 'water_level':
         include_readings = request.POST.get('include_readings') == '1'
@@ -1329,7 +1319,7 @@ def generate_report(request):
                         station.longitude if station.longitude is not None else 'N/A',
                         station.status,
                         reading.date.strftime('%Y-%m-%d'),
-                        reading.time.strftime('%H:%M:%S'),
+                        format_time_12hr(reading.time),  # Convert to 12-hour format
                         f"{reading.data:.2f}",
                     ]
                     
@@ -1410,7 +1400,7 @@ def generate_report(request):
                         station.longitude if station.longitude is not None else 'N/A',
                         station.status,
                         record.timestamp.strftime('%Y-%m-%d'),
-                        record.timestamp.strftime('%H:%M:%S')
+                        format_time_12hr(record.timestamp),  # Convert to 12-hour format
                     ]
                     
                     if include_temp:
@@ -1552,7 +1542,7 @@ def generate_report(request):
             'data_points': [
                 {
                     'date': dates[i].strftime('%Y-%m-%d'),
-                    'time': dates[i].strftime('%H:%M:%S'),
+                    'time': dates[i].strftime('%I:%M:%S %p'),  # Convert to 12-hour format
                     'level': levels[i]
                 } for i in range(len(dates))
             ]
