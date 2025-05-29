@@ -677,7 +677,7 @@
                 })
             };
             
-            // Function to convert 24-hour time to 12-hour format
+            // Function to convert 24-hour time to 12-hour format with proper date handling
             function formatTo12Hour(dateTimeStr) {
                 if (!dateTimeStr || dateTimeStr === 'N/A') return 'N/A';
                 
@@ -765,7 +765,7 @@
                     waterStationIds.push(station.id);
                     
                 } else if (station.type === 'weather') {
-                    // Create weather station popup content
+                    // Create weather station popup content with 12-hour time format
                     popupContent = `
                         <div class="custom-popup">
                             <div class="station-popup-header weather-header">
@@ -858,7 +858,7 @@
                                     const stationId = key.replace('weather_', '');
                                     const data = response.updates[key];
                                     
-                                    // Update popup content
+                                    // Update popup content with proper formatting
                                     $(`#weather-temp-${stationId}`).text(data.temperature ? data.temperature + ' °C' : 'N/A');
                                     $(`#weather-humidity-${stationId}`).text(data.humidity ? data.humidity + ' %' : 'N/A');
                                     $(`#weather-wind-${stationId}`).text(
