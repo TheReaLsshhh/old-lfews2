@@ -295,19 +295,25 @@ def fetch_station_weather_data(station_id):
                     if '2025' in obs_time_local:
                         obs_time_local = obs_time_local.replace('2025', str(current_year))
                     
-                    # Parse the timestamp and format in 12-hour format
+                    # Use the current time if the API returns a future time
                     try:
                         dt_obj = datetime.strptime(obs_time_local, "%Y-%m-%dT%H:%M:%S%z")
+                        now = datetime.now()
+                        
+                        # If the timestamp is more than a day in the future, use current time
+                        if dt_obj > now + timedelta(days=1):
+                            dt_obj = now
+                            
                         observation_time = dt_obj.strftime("%m/%d/%Y, %I:%M:%S %p")
                     except ValueError:
-                        # If parsing fails, use the original format
-                        observation_time = obs_time_local
+                        # If parsing fails, use the current time
+                        observation_time = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
                 else:
-                    # Use current time as fallback in 12-hour format
+                    # Use current time as fallback
                     observation_time = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
             except Exception as e:
                 print(f"Error formatting observation time: {str(e)}")
-                # Use current time as fallback in 12-hour format
+                # Use current time as fallback
                 observation_time = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
             
             # Return the weather data
@@ -382,7 +388,7 @@ def fetch_weather_data(request):
                 
                 # Add logs to the response with timezone info
                 station_data['logs'] = [{
-                    'timestamp': log.timestamp.strftime('%m/%d/%Y, %I:%M:%S %p'),  # 12-hour format with AM/PM
+                    'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S %z'),  # Include timezone offset
                     'temperature': log.temperature,
                     'humidity': log.humidity,
                     'wind_speed': log.wind_speed,
@@ -1814,10 +1820,10 @@ def station_map(request):
             elif latest_data.data > station.green_threshold:
                 alert_level = "green"
         
-        # Format last reading time in 12-hour format
+        # Get formatted time in 12-hour format
         last_reading_time = None
         if latest_data:
-            last_reading_time = f"{latest_data.date.strftime('%m/%d/%Y')}, {latest_data.time.strftime('%I:%M:%S %p')}"
+            last_reading_time = latest_data.get_formatted_date_time()
         
         station_info = {
             'id': station.id,
@@ -1871,10 +1877,10 @@ def station_map(request):
             except (ValueError, TypeError):
                 precipitation_rate = latest_weather.precipitation_rate
         
-        # Format last update time in 12-hour format
+        # Get formatted time in 12-hour format
         last_update = None
         if latest_weather:
-            last_update = latest_weather.timestamp.strftime("%m/%d/%Y, %I:%M:%S %p")
+            last_update = latest_weather.get_formatted_time()
         
         weather_info = {
             'id': station.id,
@@ -1948,12 +1954,12 @@ def get_station_updates(request):
                     elif latest_data.data > station.green_threshold:
                         alert_level = "green"
                     
-                    # Format time in 12-hour format
-                    time_str = f"{latest_data.date.strftime('%m/%d/%Y')}, {latest_data.time.strftime('%I:%M:%S %p')}"
+                    # Get formatted time in 12-hour format
+                    formatted_time = latest_data.get_formatted_date_time()
                     
                     updates[f"water_{station_id}"] = {
                         'reading': latest_data.data,
-                        'time': time_str,
+                        'time': formatted_time,
                         'alert_level': alert_level
                     }
             except WaterLevelStation.DoesNotExist:
@@ -1992,8 +1998,8 @@ def get_station_updates(request):
                     except (ValueError, TypeError):
                         precipitation_rate = latest_weather.precipitation_rate
                     
-                    # Format time in 12-hour format
-                    time_str = latest_weather.timestamp.strftime("%m/%d/%Y, %I:%M:%S %p")
+                    # Get formatted time in 12-hour format
+                    formatted_time = latest_weather.get_formatted_time()
                     
                     updates[f"weather_{station_id}"] = {
                         'temperature': temperature,
@@ -2001,7 +2007,7 @@ def get_station_updates(request):
                         'wind_speed': wind_speed,
                         'wind_direction': latest_weather.wind_direction,
                         'precipitation_rate': precipitation_rate,
-                        'time': time_str
+                        'time': formatted_time
                     }
             except WeatherStation.DoesNotExist:
                 pass

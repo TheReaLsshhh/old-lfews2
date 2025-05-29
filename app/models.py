@@ -36,6 +36,14 @@ class WaterLevelData(models.Model):
     def __str__(self):
         return f"{self.station.name} - {self.date} {self.time} - {self.data} cm"
     
+    def get_formatted_time(self):
+        """Return the time in 12-hour format"""
+        return self.time.strftime("%I:%M:%S %p")
+    
+    def get_formatted_date_time(self):
+        """Return the date and time in 12-hour format"""
+        return f"{self.date.strftime('%m/%d/%Y')}, {self.time.strftime('%I:%M:%S %p')}"
+    
     
 class WeatherStation(models.Model):
     name = models.CharField(max_length=255)
@@ -68,6 +76,10 @@ class WeatherStatus(models.Model):
         
     def __str__(self):
         return f"{self.weather_station.name} - {self.timestamp} - {self.temperature}°C"
+    
+    def get_formatted_time(self):
+        """Return the timestamp in 12-hour format"""
+        return self.timestamp.strftime("%m/%d/%Y, %I:%M:%S %p")
     
 
 class WeatherForecastStation(models.Model):
