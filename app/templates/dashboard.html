@@ -1534,8 +1534,8 @@
                 
                 // Calculate the time range for the most recent data
                 const now = new Date();
-                const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60000);
-                const thirtyMinutesForward = new Date(now.getTime() + 30 * 60000);
+                const thirtyMinutesAgo = new Date(now.getTime() - 20 * 60000);
+                const thirtyMinutesForward = new Date(now.getTime() + 20 * 60000);
                 
                 return {
                     title: {
@@ -1767,7 +1767,6 @@
                 
                 // Clear any existing indicators
                 $(`#station-${stationId} .modbus-warning`).remove();
-                $(`#station-${stationId} .simulation-data-label`).remove();
                 
                 // Check if we have ANY data to plot (either live or test)
                 if (values.length === 0 || dates.length === 0) {

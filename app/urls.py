@@ -4,9 +4,9 @@ from . import views
 from django.shortcuts import redirect
 
 urlpatterns = [
-    
     path('root-redirect/', views.root_redirect),
-    path('admin-login/', views.admin_login, name='admin_login'),
+    path('', views.admin_login, name='admin_login'),  # Handle root URL with login
+    path('admin-login/', views.admin_login, name='admin_login'),  # Handle direct admin-login URL
     path('logout/', views.admin_logout, name='admin_logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('fetch-water-level/', views.fetch_water_level, name='fetch_water_level'),

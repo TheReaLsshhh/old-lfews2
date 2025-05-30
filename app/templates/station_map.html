@@ -747,7 +747,7 @@
                                     <dd id="water-status-${station.id}" class="alert-${station.alert_level}">${getAlertText(station.alert_level)}</dd>
                                     
                                     <dt>Last Update:</dt>
-                                    <dd id="water-time-${station.id}">${station.last_reading_time || 'N/A'}</dd>
+                                    <dd id="water-time-${station.id}">${formatTo12Hour(station.last_reading_time) || 'N/A'}</dd>
                                     
                                     <dt>Thresholds:</dt>
                                     <dd>
@@ -799,7 +799,7 @@
                                     <dd id="weather-precip-${station.id}">${station.precipitation_rate ? station.precipitation_rate + ' mm' : 'N/A'}</dd>
                                     
                                     <dt>Last Update:</dt>
-                                    <dd id="weather-time-${station.id}">${station.last_update || 'N/A'}</dd>
+                                    <dd id="weather-time-${station.id}">${formatTo12Hour(station.last_update) || 'N/A'}</dd>
                                 </dl>
                             </div>
                         </div>
@@ -861,7 +861,7 @@
                                     $(`#water-status-${stationId}`)
                                         .attr('class', `alert-${data.alert_level}`)
                                         .text(getAlertText(data.alert_level));
-                                    $(`#water-time-${stationId}`).text(data.time);
+                                    $(`#water-time-${stationId}`).text(formatTo12Hour(data.time));
                                 }
                                 else if (key.startsWith('weather_')) {
                                     const stationId = key.replace('weather_', '');
@@ -874,7 +874,7 @@
                                         data.wind_speed ? data.wind_speed + ' km/h' : 'N/A'
                                     );
                                     $(`#weather-precip-${stationId}`).text(data.precipitation_rate ? data.precipitation_rate + ' mm' : 'N/A');
-                                    $(`#weather-time-${stationId}`).text(data.time);
+                                    $(`#weather-time-${stationId}`).text(formatTo12Hour(data.time));
                                 }
                             });
                         }
