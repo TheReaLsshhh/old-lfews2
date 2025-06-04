@@ -1,4 +1,4 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TheReaLsshhh/old-lfews2)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TheReaLsshhh/old-lfews2) <--- Click To See Details 
 # LFEWS Django Project
 
 This project is built using Python's Django framework to monitor water levels through Modbus TCP/IP-connected sensors. Follow the steps below to properly set up and run the application.
