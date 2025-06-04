@@ -1,18 +1,104 @@
-In order for this to work, here are few things to consider for this repository to work:
+# LFEWS Django Project
 
-I am using Python`s Django framework.
+This project is built using Python's Django framework to monitor water levels through Modbus TCP/IP-connected sensors. Follow the steps below to properly set up and run the application.
 
-1. Install XAMPP > Create database (old-lfews).
-2. Install Python 3.13 (in my current date I made this Django project).
-3. Install Modbus Poll application. In our case, the Modbus Poll application was provided by the organization by the time we made this project. Go to File > New > Connection > Connect, in Connection select
-Modbus TCP/IP then enter the IP address of the sensors, or your preferred IP addresses.
-4. Install PyCharm Community Edition or your prefered IDE for running Python projects.
-5. Install NSSM (Non Sucking Service Manager) > Download the latest release. This app runs the water_level_collector.py in the Django folder project. For this to setup locate where you put the extracted
-file and copy its path (C:\Users\Lenovo T450s\Downloads\nssm-2.24-103-gdee49fc\nssm-2.24-103-gdee49fc\win64) then open CMD as Administrator + cd C:\Users\Lenovo T450s\Downloads\nssm-2.24-103-gdee49fc\nssm-2.24-103-gdee49fc\win64 + 
-nssm install + Application Path is to locate where your Python application is located (C:\Users\Lenovo T450s\AppData\Local\Programs\Python\Python313), then Startup Directory is where your Django project is located (C:\Users\Lenovo T450s\PycharmProjects\old-lfews2), then
-Arguments is water_level_collector.py, lastly Service Name is WaterLevelCollector then Install Service. Start it by running (nssm start WaterLevelCollector), stop for (nssm stop WaterLevelCollector), and remove (nssm remove WaterLevelCollector).
-6. Add the repository into your PyCharm Community Edition IDE using Git.
-7. Apply python manage.py makemigrations and python manage.py migrate on your PyCharm CE terminal.
-8. Run it by typing in your PyCharm CE terminal > python manage.py runserver (if you want only want your device for it to view) > python manage.py runserver 0.0.0.0:8000 (if you want mobile
-and other desktop to view, run your CMD + ipconfig + look for Wireless LAN + IPv4 Address: actual ip address: just type the actual address on your Chrome/Edge/etc., for example is
-192.168.41.1:8000, it should run locally with the same network/wifi connected).
+---
+
+## Requirements and Setup Instructions
+
+1. **Install XAMPP**
+   - Download and install XAMPP.
+   - Create a MySQL database named: `old-lfews`.
+
+2. **Install Python 3.13**
+   - This project uses Python 3.13 (version at the time of development).
+   - [Download Python 3.13](https://www.python.org/downloads/)
+
+3. **Install Modbus Poll Application**
+   - The Modbus Poll application was provided by the organization during development.
+   - Setup:
+     - Open Modbus Poll.
+     - Go to `File > New > Connection > Connect`.
+     - Under *Connection*, select `Modbus TCP/IP`.
+     - Enter the IP address of your sensors or the desired IP address.
+
+4. **Install PyCharm Community Edition or Preferred IDE**
+   - [Download PyCharm Community](https://www.jetbrains.com/pycharm/download/)
+
+5. **Install NSSM (Non-Sucking Service Manager)**
+   - [Download NSSM](https://nssm.cc/download)
+   - This is used to run `water_level_collector.py` as a background service.
+
+   ### NSSM Setup Steps:
+   - Extract the NSSM files and locate the `win64` directory:
+     ```
+     C:\Users\Lenovo T450s\Downloads\nssm-2.24-103-gdee49fc\nssm-2.24-103-gdee49fc\win64
+     ```
+   - Open CMD as Administrator and navigate to the directory:
+     ```bash
+     cd "C:\Users\Lenovo T450s\Downloads\nssm-2.24-103-gdee49fc\nssm-2.24-103-gdee49fc\win64"
+     nssm install
+     ```
+   - In the NSSM installer:
+     - **Application Path**:  
+       `C:\Users\Lenovo T450s\AppData\Local\Programs\Python\Python313\python.exe`
+     - **Startup Directory**:  
+       `C:\Users\Lenovo T450s\PycharmProjects\old-lfews2`
+     - **Arguments**:  
+       `water_level_collector.py`
+     - **Service Name**:  
+       `WaterLevelCollector`
+
+   - To manage the service:
+     ```bash
+     nssm start WaterLevelCollector    # Start the service
+     nssm stop WaterLevelCollector     # Stop the service
+     nssm remove WaterLevelCollector   # Remove the service
+     ```
+
+6. **Clone the Repository into Your IDE**
+   - Use Git to clone the project:
+     ```bash
+     git clone https://github.com/your-org/old-lfews.git
+     ```
+
+7. **Run Migrations**
+   - In your IDE terminal (e.g., PyCharm CE), run:
+     ```bash
+     python manage.py makemigrations
+     python manage.py migrate
+     ```
+
+8. **Start the Django Server**
+   - For development (accessible only on your device):
+     ```bash
+     python manage.py runserver
+     ```
+   - For access from other devices (on the same Wi-Fi/network):
+     ```bash
+     python manage.py runserver 0.0.0.0:8000
+     ```
+   - To get your IP address:
+     - Open CMD and type:
+       ```bash
+       ipconfig
+       ```
+     - Look under **Wireless LAN adapter** → **IPv4 Address**.
+     - Access the site from another device using the IP:
+       ```
+       http://<your-ip-address>:8000
+       ```
+       Example:
+       ```
+       http://192.168.41.1:8000
+       ```
+
+---
+
+## Notes
+
+- Ensure all devices (laptop, mobile phones, sensors) are connected to the same local network.
+- Allow Python and Django through your firewall when prompted.
+- If you experience issues connecting via IP, make sure your local firewall or antivirus isn’t blocking the port.
+
+---
